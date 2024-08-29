@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="作成画面で入力した内容が正しく表示されているか確認するための画面です。">
+  <link rel="stylesheet" href="/css/preview.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="stylesheet" href="/css/preview.css">
+  <script src="/js/preview/main.js" type="module"></script>
+  <title>確認画面</title>
+</head>
+
+<body>
+  <div class="top-message">内容確認</div>
+  <div class="container">
+    <div class="sidebar">
+      <p>盤面と入力内容を確認の上、確定ボタンを押してください。</p>
+      <p>修正が必要な場合、「解説編集」ページで修正してください。このページは閉じてもらって問題ありません</p>
+      <div>
+        <button class="fix">確定</button>
+      </div>
+    </div>
+    {{.Content}}
+  </div>
+</body>
+
+</html>

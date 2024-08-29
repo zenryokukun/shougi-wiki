@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/css/edit-description.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <script src="/js/edit-description/main.js" type="module"></script>
+  <title>解説編集ページ</title>
+</head>
+
+<body>
+  <h1>手順解説</h1>
+  <div class="container">
+    <div class="left-wrapper">
+      <div class="canvas-wrapper">
+        <div class="icon-wrapper">
+          <button class="icon prev">
+            <i>
+              <svg class="disable" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 320 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                <path
+                  d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z" />
+              </svg>
+            </i>
+          </button>
+          <button class="icon next">
+            <i>
+              <svg class="disable" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 320 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+                <path
+                  d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z" />
+              </svg>
+            </i>
+          </button>
+          <span class="te">初期配置</span>
+        </div>
+        <canvas width="500" height="400" data-main="{{.Main}}" data-tegoma="{{.Tegoma}}"></canvas>
+      </div>
+    </div>
+    <div class="explanation-wrapper">
+      <h2>操作説明</h2>
+      <ol>
+        <li>正解手順の通り、盤面を操作</li>
+        <li>棋譜が正確なことを確認し、適宜修正</li>
+        <li>解説を入力</li>
+      </ol>
+      <aside class="kihu-note">
+        <h3>棋譜の補足</h3>
+        <ul>
+          <li>当サイトでは、先手は「▲」、後手は「△」で表してください</li>
+          <li>「☖」や「☗」は環境によっては正しく表示されないため、使わないでください</li>
+          <li>棋譜は<a href="https://www.shogi.or.jp/faq/kihuhyouki.html">棋譜の表記方法</a>（将棋連盟）に準じて表示されます</li>
+          <li>正しく表示されない場合、手修正をお願いします</li>
+        </ul>
+      </aside>
+      <form action="/preview" method="post" target="_blank" class="form-wrapper">
+        <fieldset class="steps">
+          <legend>棋譜</legend>
+          <div id="kihu"></div>
+        </fieldset>
+        <div>
+          <label for="explanation">解説</label>
+          <textarea name="explanation" id="explanation"
+            placeholder="1000文字以内で解説を入力してください。上の棋譜は正解手順として自動で表示されます。詳細はプレビューでご確認ください" required
+            maxlength="1000"></textarea>
+        </div>
+        <div class="title">
+          <label for="title">タイトル</label>
+          <textarea id="title" type="text" placeholder="50文字以内" required maxlength="50" name="title"></textarea>
+        </div>
+        <div class="author">
+          <label for="author">製作者名</label>
+          <input id="author" type="text" placeholder="30文字以内" required maxlength="30" name="author">
+        </div>
+        <input type="text" hidden name="data">
+        <input class="submit" type="button" value="入力内容を確認">
+      </form>
+    </div>
+  </div>
+  <img id="sprite" src="/shougi.png" alt="" style="display:none;">
+</body>
+
+</html>

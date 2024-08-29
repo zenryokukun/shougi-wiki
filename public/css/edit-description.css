@@ -1,0 +1,251 @@
+@import "./root.css";
+
+:root {
+  --side-width: 500px;
+  --large-margin: 50px;
+  --block: 1.5rem;
+  --bg-input: #f2f1f1;
+  --border-input: 1.5px solid rgb(118, 118, 118);
+}
+
+h1 {
+  text-align: center;
+  border-bottom: 1px solid lightgray;
+  margin: 0px;
+  padding: var(--block);
+}
+
+h2 {
+  margin-top: 2rem;
+  margin-bottom: 10px;
+}
+
+textarea {
+  resize: none;
+}
+
+label,
+legend {
+  color: var(--text-medium);
+}
+
+.container {
+  display: flex;
+  position: relative;
+  justify-content: center;
+
+}
+
+/*左側のcanvasエリア*/
+.left-wrapper {
+  border-right: 1px solid lightgray;
+}
+
+/* canvasとアイコンのエリア */
+.canvas-wrapper {
+  position: sticky;
+  height: 100vh;
+  top: 0px;
+  margin-top: 1rem;
+  /* margin: auto; */
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  margin-left: 2rem;
+}
+
+.icon {
+  border: none;
+  width: 1.7rem;
+  padding: 5px;
+  background-color: inherit;
+}
+
+.enable {
+  fill: var(--text-medium);
+}
+
+.disable {
+  fill: var(--text-light);
+}
+
+.te {
+  display: inline-block;
+  line-height: 30px;
+  font-size: 20px;
+  margin-left: 1rem;
+  font-weight: 600;
+  color: var(--text-medium);
+}
+
+/*右側のformエリア*/
+.explanation-wrapper {
+  /* margin-left: calc(var(--side-width) + var(--large-margin)); */
+  display: flex;
+  flex-direction: column;
+  padding: 0 2rem 2rem 2rem;
+  margin: 2rem 2rem 2rem 4rem;
+  background-color: var(--light-bg);
+  border-radius: 15px;
+}
+
+.explanation-wrapper ol {
+  margin: 0px;
+}
+
+.explanation-wrapper li {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.kihu-note {
+  color: var(--text-medium);
+  border: 1px solid lightgray;
+  padding: 10px;
+  background-color: #f0f0f0;
+  margin-top: var(--block);
+  border-radius: 15px;
+}
+
+.kihu-note h3 {
+  font-size: 1rem;
+  margin: 5px 0 5px 0;
+}
+
+.kihu-note ul {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+form>* {
+  margin-top: var(--block);
+}
+
+fieldset {
+  display: inline-block;
+}
+
+#kihu {
+  height: 250px;
+  width: 300px;
+  margin: 0px;
+  padding: 7px;
+  overflow-y: auto;
+}
+
+#kihu label {
+  display: inline-block;
+  width: 70px;
+  margin-right: 0.8rem;
+  font-family: sans-serif, monospace;
+}
+
+#kihu>div {
+  margin-bottom: 0.7rem;
+}
+
+.kihu-row {
+  padding: 5px;
+}
+
+.kihu-row:has(.highlight) {
+  background-color: rgb(64, 224, 208, 0.5);
+}
+
+input[name="kihu"] {
+  font-size: 1rem;
+  width: 165px;
+  padding: 5px;
+  background-color: var(--bg-input);
+  border: var(--border-input);
+}
+
+#explanation {
+  display: block;
+  width: 100%;
+  height: 180px;
+  padding: 7px;
+  background-color: var(--bg-input);
+}
+
+#author,
+#title {
+  font-size: 1rem;
+  padding: 7px;
+  background-color: var(--bg-input);
+  width: 95%;
+  border: var(--border-input);
+}
+
+.submit {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 3px 5px 3px 5px;
+  width: 130px;
+  margin-top: 3rem;
+}
+
+@media screen and (max-width:1024px) {
+  .container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .left-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-right: none;
+    width: 100%;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid lightgray;
+  }
+
+  .canvas-wrapper {
+    height: auto;
+    position: relative;
+    margin-left: 50px;
+  }
+}
+
+@media screen and (max-width:600px) {
+  .canvas-wrapper {
+    width: 100%;
+    margin-left: auto;
+  }
+
+  .icon-wrapper {
+    column-gap: 1rem;
+  }
+
+  .explanation-wrapper {
+    align-items: center;
+    margin: 2rem 1rem 2rem 1rem;
+    padding: 0 0 2rem 0rem;
+  }
+
+  .explanation-wrapper>* {
+    width: 90%;
+  }
+
+  .steps {
+    width: 92%;
+  }
+
+  #explanation {
+    width: 95%;
+    height: 250px;
+  }
+
+  .submit {
+    height: 3rem;
+    width: 150px;
+  }
+
+  canvas {
+    width: 100%;
+  }
+}

@@ -1,0 +1,149 @@
+{{if not .IsPreview}}
+<div class="works-other-content">
+  {{if not (eq (add .Id -1) 0)}}
+  <a href="javascript:void(0)" id="prev">前の作品</a>
+  {{end}}
+  <a href="javascript:void(0)" id="next">次の作品</a>
+  <a href="/revise/?id={{.Id}}" class="revise">
+    <svg xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"><!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+      <path
+        d="M471.6 21.7c-21.9-21.9-57.3-21.9-79.2 0L362.3 51.7l97.9 97.9 30.1-30.1c21.9-21.9 21.9-57.3 0-79.2L471.6 21.7zm-299.2 220c-6.1 6.1-10.8 13.6-13.5 21.9l-29.6 88.8c-2.9 8.6-.6 18.1 5.8 24.6s15.9 8.7 24.6 5.8l88.8-29.6c8.2-2.7 15.7-7.4 21.9-13.5L437.7 172.3 339.7 74.3 172.4 241.7zM96 64C43 64 0 107 0 160L0 416c0 53 43 96 96 96l256 0c53 0 96-43 96-96l0-96c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 96c0 17.7-14.3 32-32 32L96 448c-17.7 0-32-14.3-32-32l0-256c0-17.7 14.3-32 32-32l96 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L96 64z" />
+    </svg>
+    <span>編集する</span>
+  </a>
+</div>
+{{end}}
+<div class="works-content" data-tesu="{{.Tesu}}">
+  <header class="title-wrapper">
+    <h1>{{.Title}}
+    </h1>
+    <div class="title-id">作品ID:{{if not .IsPreview}}{{.Id}}{{else}}X{{end}}</div>
+    <div class="title-info-wrapper">
+      <div class="title-info">
+        <span class="title-info-label">手数</span>
+        <span class="title-info-date">{{.Tesu}}手詰</span>
+      </div>
+      <div class="title-info">
+        <span class="title-info-label">投稿日</span>
+        <span class="title-info-date">{{.PublishDate}}</span>
+      </div>
+      <div class="title-info">
+        <span class="title-info-label">最終更新日</span>
+        <span class="title-info-date">{{.EditDate}}</span>
+      </div>
+    </div>
+  </header>
+  <div class="canvas-wrapper">
+    <div class="icon-wrapper">
+      <button class="icon prev">
+        <i>
+          <svg class="disable" xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 320 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+            <path
+              d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z" />
+          </svg>
+        </i>
+      </button>
+      <button class="icon next">
+        <i>
+          <svg class="enable" xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 320 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+            <path
+              d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z" />
+          </svg>
+        </i>
+      </button>
+      <div class="current-kihu"></div>
+    </div>
+    <canvas width="490" height="540" data-main="{{.Main}}" data-tegoma="{{.Tegoma}}" data-gotetegoma="{{.GoteTegoma}}"
+      data-kihu="{{.KihuJ}}"></canvas>
+  </div>
+  <div class="answer-handler-wrapper">
+    {{if .IsPreview}}
+    <button data-inimode="show">
+      答えを隠す
+    </button>
+    {{else}}
+    <button data-inimode="hide">
+      答えを表示する
+    </button>
+    {{end}}
+  </div>
+  <div class="info-wrapper">
+    <div>
+      <h2>正解手順</h2>
+      <div class="answer">
+        <ol>
+          {{range $i,$v := .Kihu}}
+          <li data-kihu-i="{{$i}}">{{$v}}</li>
+          {{end}}
+        </ol>
+      </div>
+      <h2>解説</h2>
+      <div class="exp">{{.Explanation}}</div>
+      <h2>製作者</h2>
+      <div class="author">{{.Author}}</div>
+    </div>
+  </div>
+  {{if not .IsPreview}}
+  <div>
+    <div class="eval-title">評価をお願いします</div>
+    <div class="eval-wrapper">
+      <div>
+        <button id="good" class="icon-large">
+          <svg class="off" xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"><!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+            <path
+              d="M313.4 32.9c26 5.2 42.9 30.5 37.7 56.5l-2.3 11.4c-5.3 26.7-15.1 52.1-28.8 75.2l144 0c26.5 0 48 21.5 48 48c0 18.5-10.5 34.6-25.9 42.6C497 275.4 504 288.9 504 304c0 23.4-16.8 42.9-38.9 47.1c4.4 7.3 6.9 15.8 6.9 24.9c0 21.3-13.9 39.4-33.1 45.6c.7 3.3 1.1 6.8 1.1 10.4c0 26.5-21.5 48-48 48l-97.5 0c-19 0-37.5-5.6-53.3-16.1l-38.5-25.7C176 420.4 160 390.4 160 358.3l0-38.3 0-48 0-24.9c0-29.2 13.3-56.7 36-75l7.4-5.9c26.5-21.2 44.6-51 51.2-84.2l2.3-11.4c5.2-26 30.5-42.9 56.5-37.7zM32 192l64 0c17.7 0 32 14.3 32 32l0 224c0 17.7-14.3 32-32 32l-64 0c-17.7 0-32-14.3-32-32L0 224c0-17.7 14.3-32 32-32z" />
+          </svg>
+        </button>
+        <div class="count">{{.Good}}</div>
+      </div>
+      <div>
+        <button id="bad" class="icon-large">
+          <svg class="off" xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"><!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+            <path
+              d="M313.4 479.1c26-5.2 42.9-30.5 37.7-56.5l-2.3-11.4c-5.3-26.7-15.1-52.1-28.8-75.2l144 0c26.5 0 48-21.5 48-48c0-18.5-10.5-34.6-25.9-42.6C497 236.6 504 223.1 504 208c0-23.4-16.8-42.9-38.9-47.1c4.4-7.3 6.9-15.8 6.9-24.9c0-21.3-13.9-39.4-33.1-45.6c.7-3.3 1.1-6.8 1.1-10.4c0-26.5-21.5-48-48-48l-97.5 0c-19 0-37.5 5.6-53.3 16.1L202.7 73.8C176 91.6 160 121.6 160 153.7l0 38.3 0 48 0 24.9c0 29.2 13.3 56.7 36 75l7.4 5.9c26.5 21.2 44.6 51 51.2 84.2l2.3 11.4c5.2 26 30.5 42.9 56.5 37.7zM32 384l64 0c17.7 0 32-14.3 32-32l0-224c0-17.7-14.3-32-32-32L32 96C14.3 96 0 110.3 0 128L0 352c0 17.7 14.3 32 32 32z" />
+          </svg>
+        </button>
+        <div class="count">{{.Bad}}</div>
+      </div>
+      <div>
+        <button id="demand" class="icon-large">
+          <svg class="off" xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 448 512"><!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+            <path
+              d="M64 32C64 14.3 49.7 0 32 0S0 14.3 0 32L0 64 0 368 0 480c0 17.7 14.3 32 32 32s32-14.3 32-32l0-128 64.3-16.1c41.1-10.3 84.6-5.5 122.5 13.4c44.2 22.1 95.5 24.8 141.7 7.4l34.7-13c12.5-4.7 20.8-16.6 20.8-30l0-247.7c0-23-24.2-38-44.8-27.7l-9.6 4.8c-46.3 23.2-100.8 23.2-147.1 0c-35.1-17.6-75.4-22-113.5-12.5L64 48l0-16z" />
+          </svg>
+        </button>
+        <div class="count">{{.Demand}}</div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="comment-title">コメント</div>
+    <form class="comment-form">
+      <label for="name">名前</label>
+      <input type="text" id="name" name="name" placeholder="投稿者名（30文字以内）" maxlength="30" required>
+      <label for="comment">投稿内容</label>
+      <textarea name="comment" id="comment" placeholder="いずれかの評価をクリックしていただき、５００文字以内でコメントを入力してください" maxlength="500"
+        required></textarea>
+      <div>
+        <button class="submit" type="submit">送信</button>
+        <span class="submit-status"></span>
+      </div>
+    </form>
+  </div>
+  {{if .Posts}}
+  <div class="posts-wrapper">
+    <div class="posts">
+      {{template "posts" .}}
+    </div>
+    <button class="posts-fetch">次のコメントを取得</button>
+  </div>
+  {{end}}
+  {{end}}
+  <img id="sprite" src="/shougi.png" alt="" style="display:none;">
+</div>

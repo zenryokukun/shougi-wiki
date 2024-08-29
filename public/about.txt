@@ -1,0 +1,15 @@
+This favicon was generated using the following font:
+
+- Font Title: Zen Kaku Gothic New
+- Font Author: Copyright 2022 The Zen Project Authors (https://github.com/googlefonts/zen-kakugothic)
+- Font Source: https://fonts.gstatic.com/s/zenkakugothicnew/v15/gNMYW2drQpDw0GjzrVNFf_valaDBcznOkjtiTWz5UGA.ttf
+- Font License: SIL Open Font License, 1.1 (http://scripts.sil.org/OFL))
+
+Next, copy the following link tags and paste them into the head of your HTML.
+
+```html
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/site.webmanifest">
+```

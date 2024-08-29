@@ -1,0 +1,3 @@
+*.db
+/public/bk_*
+/public/thumb
