@@ -24,7 +24,7 @@ const POST_LIMIT = 5
 
 type (
 	// /api/insert-workのBody部分
-	InsertWorkBody struct {
+	WorkBody struct {
 		Main        string `json:"main"`
 		Tegoma      string `json:"tegoma"`
 		GoteTegoma  string `json:"goteTegoma"`
@@ -33,6 +33,9 @@ type (
 		Explanation string `json:"explanation"`
 		Author      string `json:"author"`
 		Pic         string `json:"pic"`
+		Id          int    `json:"id"`      // 編集モードで利用
+		Editor      string `json:"editor"`  // 編集モードで利用
+		Comment     string `json:"comment"` // 編集モードで利用
 	}
 )
 
@@ -50,9 +53,14 @@ type (
 		Key   string `json:"key"`
 		Value int    `json:"value"`
 	}
+	// /api/update-undoで利用
+	UpdateUndoBody struct {
+		Id  int `json:"id"`
+		Seq int `json:"seq"`
+	}
 )
 
-func (b *InsertWorkBody) steps() (int, error) {
+func (b *WorkBody) steps() (int, error) {
 	m := [][]int32{}
 	err := json.Unmarshal([]byte(b.Main), &m)
 	return len(m), err
@@ -114,8 +122,16 @@ func main() {
 	// templateに埋め込むデータとか
 	rootData := NewRootData()
 
+	// template内で実行できるカスタム関数
+	customFunc := template.FuncMap{
+		"add": func(v, inc int) int {
+			return v + inc
+		},
+	}
+
 	// html template
-	tmpl, err := template.ParseFiles("./html/edit-description.html", "./html/preview.html")
+	// tmpl, err := template.ParseFiles("./html/edit-description.html", "./html/preview.html")
+	tmpl, err := template.New("edit-description").Funcs(customFunc).ParseFiles("./html/edit-description.html", "./html/preview.html")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,11 +142,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	customFunc := template.FuncMap{
-		"add": func(v, inc int) int {
-			return v + inc
-		},
-	}
 	// 詰将棋のコンテンツ部分のtemplate
 	worksTmpl, err := template.New("works").Funcs(customFunc).ParseFiles("./html/works.html", "./html/works-meta.html", "./html/posts.html")
 	if err != nil {
@@ -193,6 +204,7 @@ func main() {
 		}
 	}))
 
+	// 新規作成画面
 	http.HandleFunc("/edit/description", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -201,10 +213,11 @@ func main() {
 		main := r.FormValue("main")
 		tegoma := r.FormValue("tegoma")
 		Data := struct {
-			Main   string
-			Tegoma string
+			Main     string
+			Tegoma   string
+			IsRevise bool
 		}{
-			Main: main, Tegoma: tegoma,
+			Main: main, Tegoma: tegoma, IsRevise: false,
 		}
 		// w.Header().Add("Content-Type", "text/html")
 		// w.Write([]byte(`<h1>TEST</h1>`))
@@ -214,35 +227,134 @@ func main() {
 		}
 	})
 
+	// 修正画面
+	http.HandleFunc("/revise/", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		idStr := query.Get("id")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		rec, err := getWork(db, int(id))
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		edits, err := getHistorySummary(db, int(id))
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		data := struct {
+			Id              int
+			Main            string
+			Tegoma          string
+			GoteTegoma      string
+			KihuJ           string
+			Title           string
+			Explanation     string
+			Author          string
+			PublishDateUnix int
+			IsRevise        bool
+			Edits           []HistorySummary
+		}{
+			Id:   int(id),
+			Main: rec.Main, Tegoma: rec.Tegoma,
+			GoteTegoma: rec.GoteTegoma, KihuJ: rec.KihuJ,
+			Title: rec.Title, Explanation: rec.Explanation, Author: rec.Author,
+			PublishDateUnix: rec.PublishDateUnix,
+			IsRevise:        true,
+			Edits:           edits,
+		}
+
+		err = tmpl.ExecuteTemplate(w, "edit-description.html", data)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+
 	http.HandleFunc("POST /preview", func(w http.ResponseWriter, r *http.Request) {
 		data := r.FormValue("data")
 		author := r.FormValue("author")
 		exp := r.FormValue("explanation")
 		title := r.FormValue("title")
+		editor := r.FormValue("editor")
+		comment := r.FormValue("comment")
+		publishUnix := r.FormValue("publish-unix")
+		// reviseが遷移元URLに含まれれば編集モード、含まれなければ新規モード
+		isReviseMode := strings.Contains(r.Referer(), "/revise/")
+
 		// title := r.FormValue("title")
 		form := EditFormData{
 			Explanation: exp,
 			Author:      author,
+			Editor:      editor,
 			Title:       title,
 		}
-		// プレビューに必要なデータを取得
-		dt := Dates{
-			PublishDate: currentDateStr(),
-			EditDate:    "-",
+
+		// 編集モードならば編集者をセット。過去の編集者はカンマで区切って並べる
+		// Idもセットする
+		if isReviseMode {
+			idStr := r.FormValue("id")
+			form.WorkId = idStr
+			form.Editor = editor
+		} else {
+			form.WorkId = "X"
 		}
+		// プレビューに必要なデータを取得
+		var dt Dates
+		if isReviseMode {
+			publishUnixInt, err := strconv.ParseInt(publishUnix, 10, 64)
+			if err != nil {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			dt.PublishDate = unixToStr(publishUnixInt)
+			dt.EditDate = currentDateStr()
+		} else {
+			dt.PublishDate = currentDateStr()
+			dt.EditDate = "-"
+		}
+		// dt := Dates{
+		// 	PublishDate: currentDateStr(),
+		// 	EditDate:    "-",
+		// }
 		wc := preview(data, form, dt)
 
 		// templateに落とすための変数。io.Writer型である必要あり。
 		// works.htmlに埋め込んだ値
 		wBuf := &bytes.Buffer{}
 
-		err := worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
+		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		wdata := struct{ Content template.HTML }{
-			Content: template.HTML(wBuf.String()),
+		// preview.htmlテンプレートには３つのモード(revise,new,undo)がある。
+		// /previewエンドポイントでは、revise、newのいずれかとなる。
+		// /undoエンドポイントでもpreview.htmlを使い、一律undoとなる
+		var mode string
+		if isReviseMode {
+			mode = "revise"
+		} else {
+			mode = "new"
+		}
+		wdata := struct {
+			Mode          string
+			CurrentEditor string
+			EditComment   string
+			Content       template.HTML
+		}{
+			Mode:          mode,
+			CurrentEditor: editor,
+			EditComment:   comment,
+			Content:       template.HTML(wBuf.String()),
 		}
 
 		err = tmpl.ExecuteTemplate(w, "preview.html", wdata)
@@ -252,7 +364,7 @@ func main() {
 	})
 
 	http.HandleFunc("POST /api/insert-work", func(w http.ResponseWriter, r *http.Request) {
-		body := &InsertWorkBody{}
+		body := &WorkBody{}
 		dec := json.NewDecoder(r.Body)
 		dec.Decode(body)
 
@@ -305,6 +417,30 @@ func main() {
 		w.Write([]byte("登録成功しました。反映まで少し時間がかかる場合があります。編集ページは全て閉じてOKです。作品投稿ありがとうございましたm(__)m"))
 
 		// リンクのcacheを更新
+		cache.Update(db)
+	})
+
+	http.HandleFunc("/api/update-work", func(w http.ResponseWriter, r *http.Request) {
+		body := &WorkBody{}
+		dec := json.NewDecoder(r.Body)
+		err := dec.Decode(body)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// @Todo
+		//  - backup and update work db
+		err = updateWork(db, body)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte("更新成功"))
+		// @Todo
+		//  - update cache
 		cache.Update(db)
 	})
 
@@ -489,20 +625,111 @@ func main() {
 		w.Write([]byte(fmt.Sprint(nextId)))
 	})
 
-	http.HandleFunc("/revise/", func(w http.ResponseWriter, r *http.Request) {
+	// undoモードでプレビュー画面を表示する
+	http.HandleFunc("GET /undo", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		idStr := query.Get("id")
+		seqStr := query.Get("seq")
+
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
 			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		fmt.Println(id)
+
+		seq, err := strconv.ParseInt(seqStr, 10, 64)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		hist, err := getHistory(db, int(id), int(seq))
+
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		form := EditFormData{
+			Explanation: hist.Explanation,
+			Author:      hist.Author,
+			Editor:      hist.Editor,
+			Title:       hist.Title,
+			WorkId:      fmt.Sprint(hist.Id),
+		}
+
+		dates := Dates{
+			PublishDate: hist.PublishDate,
+			EditDate:    hist.EditDate,
+		}
+
+		wc := &WorksContent{
+			EditFormData: form,
+			// Dates:        dates,
+			Main:       hist.Main,
+			Tegoma:     hist.Tegoma,
+			GoteTegoma: hist.GoteTegoma,
+			Kihu:       hist.Kihu,
+			KihuJ:      hist.KihuJ,
+			IsPreview:  true,
+			Tesu:       hist.Tesu,
+		}
+
+		wc.PublishDate = dates.PublishDate
+		wc.EditDate = dates.EditDate
+
+		fmt.Println(wc.Dates.EditDate, wc.Dates.PublishDate)
+
+		wBuf := &bytes.Buffer{}
+		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		wdata := struct {
+			Mode    string
+			Content template.HTML
+		}{
+			"undo",
+			template.HTML(wBuf.String()),
+		}
+
+		err = tmpl.ExecuteTemplate(w, "preview.html", wdata)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	// preview画面（undoモード）の登録処理。workの内容をhistoryから戻す
+	http.HandleFunc("/api/update-undo", func(w http.ResponseWriter, r *http.Request) {
+		bd := &UpdateUndoBody{}
+		dec := json.NewDecoder(r.Body)
+		err := dec.Decode(bd)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		err = undoWorkFromHistory(db, bd.Id, bd.Seq)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte("更新成功"))
+		cache.Update(db)
 	})
 
 	// localhostをつけないと、起動時にfw許可のメッセージが出る
 	// つけると、スマホ等別デバイスからのアクセスができなくなる
-	// http.ListenAndServe("localhost:8000", nil)
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe("localhost:8000", nil)
+	// http.ListenAndServe(":8000", nil)
 
 }

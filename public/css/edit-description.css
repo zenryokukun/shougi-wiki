@@ -171,12 +171,18 @@ input[name="kihu"] {
 }
 
 #author,
-#title {
+#editor,
+#title,
+#comment {
   font-size: 1rem;
   padding: 7px;
   background-color: var(--bg-input);
   width: 95%;
   border: var(--border-input);
+}
+
+#comment {
+  height: 75px;
 }
 
 .submit {
@@ -186,6 +192,53 @@ input[name="kihu"] {
   padding: 3px 5px 3px 5px;
   width: 130px;
   margin-top: 3rem;
+}
+
+.no-edit-msg {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-medium);
+}
+
+table {
+  margin-top: 2rem;
+  width: 100%;
+}
+
+thead th {
+  font-weight: 600;
+  text-align: left;
+  padding-right: 1rem;
+  text-align: center;
+}
+
+tbody * {
+  padding-right: 10px;
+  padding-top: 1rem;
+  border-bottom: 1px dotted darkgray;
+  font-weight: normal;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.9rem;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text-medium);
+}
+
+.narrower {
+  width: 20px;
+}
+
+@media screen and (min-width:1024px) {
+  .explanation-wrapper {
+    width: 50%;
+  }
+}
+
+@media screen and (max-width:1200px) {
+  .explanation-wrapper {
+    margin: 1rem;
+
+  }
 }
 
 @media screen and (max-width:1024px) {
@@ -208,6 +261,10 @@ input[name="kihu"] {
     height: auto;
     position: relative;
     margin-left: 50px;
+  }
+
+  .explanation-wrapper {
+    margin: 2rem 2rem 2rem 4rem;
   }
 }
 
@@ -240,6 +297,11 @@ input[name="kihu"] {
     height: 250px;
   }
 
+  #title,
+  #comment {
+    height: 150px;
+  }
+
   .submit {
     height: 3rem;
     width: 150px;
@@ -247,5 +309,9 @@ input[name="kihu"] {
 
   canvas {
     width: 100%;
+  }
+
+  tbody * {
+    padding-top: 2rem;
   }
 }

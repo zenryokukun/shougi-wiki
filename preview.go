@@ -7,8 +7,12 @@ import (
 
 type (
 	EditFormData struct {
+		// 編集モードのみForm(hidden)に存在する項目
+		// 画面に表示している作品IDで使う
+		WorkId      string
 		Explanation string
 		Author      string
+		Editor      string
 		Title       string
 	}
 	EditCanvasData struct {
@@ -88,6 +92,8 @@ func (wc *WorksContent) addFormData(form EditFormData) {
 	wc.Author = form.Author
 	wc.Explanation = form.Explanation
 	wc.Title = form.Title
+	wc.Editor = form.Editor
+	wc.WorkId = form.WorkId
 }
 
 func (wc *WorksContent) addDates(dates Dates) {

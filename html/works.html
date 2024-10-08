@@ -14,11 +14,11 @@
   </a>
 </div>
 {{end}}
-<div class="works-content" data-tesu="{{.Tesu}}">
-  <header class="title-wrapper">
+<div class="works-content" data-tesu="{{.Tesu}}" data-id="{{if not .IsPreview}}{{.Id}}{{else}}{{.WorkId}}{{end}}">
+  <header class=" title-wrapper">
     <h1>{{.Title}}
     </h1>
-    <div class="title-id">作品ID:{{if not .IsPreview}}{{.Id}}{{else}}X{{end}}</div>
+    <div class="title-id">作品ID:{{if not .IsPreview}}{{.Id}}{{else}}{{.WorkId}}{{end}}</div>
     <div class="title-info-wrapper">
       <div class="title-info">
         <span class="title-info-label">手数</span>
@@ -82,9 +82,15 @@
       </div>
       <h2>解説</h2>
       <div class="exp">{{.Explanation}}</div>
-      <h2>製作者</h2>
-      <div class="author">{{.Author}}</div>
     </div>
+  </div>
+  <div class="writers">
+    <h2>製作者</h2>
+    <div class="author" id="author">{{.Author}}</div>
+    {{if .Editor}}
+    <h2>編集者</h2>
+    <div class="author" id="editor">{{.Editor}}</div>
+    {{end}}
   </div>
   {{if not .IsPreview}}
   <div>

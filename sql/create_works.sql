@@ -17,4 +17,8 @@ CREATE TABLE WORKS(
     BAD INTEGER,
     -- 修正要望数
     DEMAND INTEGER
+    -- バックアップから復元した時に設定される
+    BACKUP_SEQ INTEGER
+    -- 編集した時に記録される修正内容
+    COMMENT TEXT
 );

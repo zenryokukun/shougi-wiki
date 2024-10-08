@@ -12,6 +12,8 @@
   --sidebar-width: 360px;
   --primary: rgb(255, 89, 0);
   --secondary: darkslategray;
+  --bg-input: #f2f1f1;
+  --border-input: 1.5px solid rgb(118, 118, 118);
 }
 
 html,
@@ -167,6 +169,47 @@ body {
   grid-template-rows: 1fr;
 }
 
+.explanation {
+  position: relative;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background-color: var(--bg-medium);
+  color: #303030;
+  border-left: 3px solid var(--secondary);
+}
+
+.explanation::before {
+  background-color: var(--secondary);
+  position: absolute;
+  display: block;
+  top: -10px;
+  left: 10px;
+  content: "";
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  mask-image: url("/svg/square-check-solid.svg");
+}
+
+
+.edit-comment-label {
+  color: var(--text-medium);
+  font-size: 0.9rem;
+}
+
+.edit-comment-text {
+  width: 95%;
+  background-color: var(--bg-input);
+  padding: 7px;
+  border: var(--border-input);
+  font-size: 1rem;
+  resize: none;
+  height: 100px;
+  font-family: inherit;
+}
+
 /* .answer-handler-wrapper button {
   width: 170px;
   display: block;
@@ -197,6 +240,10 @@ body {
     padding-left: 1.5rem;
     padding-right: 1.5rem;
   }
+
+  .edit-comment-text {
+    height: 55px;
+  }
 }
 
 @media screen and (max-width:600px) {
@@ -206,6 +253,10 @@ body {
     width: 95%;
     margin: 2rem 0 2rem 0;
     padding: 1.5rem 0.5rem 2rem 0.5rem;
+  }
+
+  .edit-comment-text {
+    height: 80px;
   }
 
   /* 

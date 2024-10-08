@@ -67,6 +67,9 @@ function initOtherWork() {
         customFetch(next, param);
     })
 
+    const prev = document.getElementById("#prev");
+    // prevはnullの場合もある
+    if (prev === null) return;
     prev.addEventListener("click", e => {
         e.preventDefault();
         const param = new URLSearchParams({ id, tesu, value: -1 })

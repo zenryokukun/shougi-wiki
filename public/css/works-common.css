@@ -43,7 +43,8 @@
   width: 80px;
 }
 
-.info-wrapper h2 {
+.info-wrapper h2,
+.writers h2 {
   margin-top: 3rem;
   font-size: 28px;
   font-weight: 500;
@@ -115,7 +116,8 @@
     padding: 8px 8px 8px 16px;
   }
 
-  .info-wrapper {
+  .info-wrapper,
+  .writers {
     padding: 1rem 1.5rem 1rem 1.5rem;
   }
 

@@ -4,17 +4,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{if .IsRevise}}
+  <meta name="description" content="既存の作品を編集するページです。より良い内容になるよう、ご協力をお願いします。">
+  {{else}}
+  <meta name="description" content="新規作品の解説を作成するページです。">
+  {{end}}
   <link rel="stylesheet" href="/css/edit-description.css">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
   <link rel="manifest" href="/site.webmanifest">
+  {{if .IsRevise}}
+  <script src="/js/revise/main.js" type="module"></script>
+  {{else}}
   <script src="/js/edit-description/main.js" type="module"></script>
+  {{end}}
   <title>解説編集ページ</title>
 </head>
 
 <body>
-  <h1>手順解説</h1>
+  <h1>{{if .IsRevise}}【編集モード】手順解説{{else}}手順解説{{end}}</h1>
   <div class="container">
     <div class="left-wrapper">
       <div class="canvas-wrapper">
@@ -39,15 +48,22 @@
           </button>
           <span class="te">初期配置</span>
         </div>
-        <canvas width="500" height="400" data-main="{{.Main}}" data-tegoma="{{.Tegoma}}"></canvas>
+        <canvas width="500" height="400" data-main="{{.Main}}" data-tegoma="{{.Tegoma}}" {{if
+          .IsRevise}}data-gotetegoma="{{.GoteTegoma}}" data-kihu="{{.KihuJ}}" {{end}}></canvas>
       </div>
     </div>
     <div class="explanation-wrapper">
       <h2>操作説明</h2>
       <ol>
+        {{if .IsRevise}}
+        <li>手順の修正が必要な場合、盤面を操作してください</li>
+        <li>盤上の駒を追加・削除することはできません。別作品として作成をお願いします</li>
+        <li>製作者名の修正はできません</li>
+        {{else}}
         <li>正解手順の通り、盤面を操作</li>
         <li>棋譜が正確なことを確認し、適宜修正</li>
         <li>解説を入力</li>
+        {{end}}
       </ol>
       <aside class="kihu-note">
         <h3>棋譜の補足</h3>
@@ -67,19 +83,66 @@
           <label for="explanation">解説</label>
           <textarea name="explanation" id="explanation"
             placeholder="1000文字以内で解説を入力してください。上の棋譜は正解手順として自動で表示されます。詳細はプレビューでご確認ください" required
-            maxlength="1000"></textarea>
+            maxlength="1000">{{if .IsRevise}}{{.Explanation}}{{end}}</textarea>
         </div>
         <div class="title">
           <label for="title">タイトル</label>
-          <textarea id="title" type="text" placeholder="50文字以内" required maxlength="50" name="title"></textarea>
+          <textarea id="title" type="text" placeholder="50文字以内" required maxlength="50"
+            name="title">{{if .IsRevise}}{{.Title}}{{end}}</textarea>
         </div>
         <div class="author">
-          <label for="author">製作者名</label>
-          <input id="author" type="text" placeholder="30文字以内" required maxlength="30" name="author">
+          <label for="author">製作者名{{if .IsRevise}}【編集不可】{{end}}</label>
+          <input id="author" type="text" placeholder="30文字以内" required maxlength="30" name="author" {{if
+            .IsRevise}}value="{{.Author}}" readonly{{end}}>
         </div>
+        {{if .IsRevise}}
+        <div class="author">
+          <label for="editor">編集者名</label>
+          <input id="editor" type="text" placeholder="編集者としてクレジットされます(30文字以内)" required maxlength="30" name="editor">
+        </div>
+        <div class="revise-comment">
+          <label for="comment">修正コメント</label>
+          <textarea id="comment" type="text" placeholder="修正理由(100文字以内) 例：タイトルを修正" required maxlength="100"
+            name="comment"></textarea>
+        </div>
+        <input type="text" hidden name="publish-unix" value="{{.PublishDateUnix}}">
+        <input type="text" hidden name="id" value="{{.Id}}">
+        {{end}}
         <input type="text" hidden name="data">
         <input class="submit" type="button" value="入力内容を確認">
       </form>
+      {{if .IsRevise}}
+      <div class="history">
+        <h2>過去の編集履歴</h2>
+        {{if eq (len .Edits) 0}}
+        <div class="no-edit-msg">この作品はまだ編集されていません。</div>
+        {{else}}
+        <div class="history-explanation">
+          クリックすると、過去の内容のプレビュー画面が開きます。<b>過去の内容に戻す</b>場合に使ってください。
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">編集ID</th>
+              <th scope="col">更新者</th>
+              <th scope="col" class="wider">更新内容</th>
+              <th scope="col" class="narrower">更新日</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range $i,$edit := .Edits}}
+            <tr data-id="{{$edit.Id}}" data-seq="{{$edit.Seq}}" {{if .IsRestored}}data-restored="true" {{end}}>
+              <th scope="row">{{$edit.Id}}-{{$edit.Seq}}</th>
+              <td>{{$edit.Editor}}</td>
+              <td>{{$edit.Comment}}</td>
+              <td>{{$edit.EditDate}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{end}}
+      </div>
+      {{end}}
     </div>
   </div>
   <img id="sprite" src="/shougi.png" alt="" style="display:none;">

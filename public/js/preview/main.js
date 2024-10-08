@@ -20,15 +20,49 @@ function init() {
     // 送信ボタン押下時の処理を生成し、eventをアタッチ。
     // canvasの初期状態（0手目）を画像にするため、mycvs.render後に実施する必要がある
     const fixBtn = document.querySelector(".fix");
-    const callback = submitFactory(mainStr, tegomaStr, goteTegomaStr, kihuStr);
-    fixBtn.addEventListener("click", callback);
+    const modeNode = document.querySelector('[data-mode]');
+    const mode = modeNode ? modeNode.dataset.mode : null;
+    const callback = submitFactory(mainStr, tegomaStr, goteTegomaStr, kihuStr, mode);
+    fixBtn.addEventListener("click", () => {
+        const ok = confirm("修正内容を確認し、問題なければOKを押してください。")
+        if (ok) {
+            callback();
+        }
+    });
+
 }
 
 function submitFactory(
     mainStr, tegomaStr, goteTegomaStr, kihuStr
+    , mode
 ) {
+    // modeは"revise"か"undo"かnullのいずれかとなる。
+    // undoは過去の履歴から戻す場合。画面の入力値は使わない。
+    if (mode === "undo") {
+        const param = new URLSearchParams(window.location.search);
+        const id = param.get("id");
+        const seq = param.get("seq");
+        const body = JSON.stringify({ id: parseInt(id), seq: parseInt(seq) });
+        return function () {
+            fetch("/api/update-undo", {
+                method: "post",
+                headers: { "Content-Type": "application/json" },
+                body: body,
+            }).then(res => {
+                if (!res.ok) {
+                    throw new Error("更新に失敗しました、、、後で試してください");
+                }
+                return res.text();
+            }).then(data => alert(data))
+                .catch(err => alert(err));
+        }
+    }
+
+    // trueなら編集モード、falseなら新規登録モード
+    const isRevised = mode === "revise"
+
     const expNode = document.querySelector(".exp");
-    const authorNode = document.querySelector(".author");
+    const authorNode = document.querySelector("#author");
     const titleNode = document.querySelector(".title-wrapper h1");
     if (expNode === null || authorNode === null || titleNode === null) {
         alert("予期せぬエラーがありました。このページは閉じ、前のページからやり直してください");
@@ -47,8 +81,26 @@ function submitFactory(
         pic: img,
     };
 
+    const url = isRevised ? "/api/update-work" : "/api/insert-work";
+    // 編集モード
+    if (isRevised) {
+        const editorNode = document.querySelector("[data-current-editor]");
+        // datasetの値はa-b -> aBのように変換される。詳細は以下のリンクを参照
+        // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/dataset
+        const editor = editorNode.dataset["currentEditor"];
+        body.editor = editor;
+
+        const idNode = document.querySelector("[data-id]");
+        const wid = idNode.dataset.id;
+        body.id = parseInt(wid);
+
+        const commentNode = document.querySelector("#comment");
+        const comment = commentNode ? commentNode.textContent : "";
+        body.comment = comment;
+    }
+
     return function () {
-        fetch("/api/insert-work", {
+        fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),

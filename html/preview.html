@@ -15,12 +15,25 @@
   <title>確認画面</title>
 </head>
 
-<body>
-  <div class="top-message">内容確認</div>
+<body {{if eq .Mode "revise" }}data-mode="revise" data-current-editor="{{.CurrentEditor}}" {{else if eq .Mode "undo"
+  }}data-mode="undo" {{end}}>
+  <div class="top-message">{{if ne .Mode "new"}}【編集モード】{{end}}内容確認</div>
   <div class="container">
     <div class="sidebar">
       <p>盤面と入力内容を確認の上、確定ボタンを押してください。</p>
-      <p>修正が必要な場合、「解説編集」ページで修正してください。このページは閉じてもらって問題ありません</p>
+      <p>修正が必要な場合、「解説編集」ページで修正してください。このページは閉じてもらって問題ありません。</p>
+      {{if eq .Mode "revise"}}
+      <p>編集画面で入力された修正コメントは以下のとおりです。</p>
+      <div class="edit-comment">
+        <label for="comment" class="edit-comment-label">修正コメント</label>
+        <textarea id="comment" class="edit-comment-text" readonly>{{.EditComment}}</textarea>
+      </div>
+      {{end}}
+      {{if eq .Mode "undo"}}
+      <div class="explanation">
+        <div>過去の履歴に戻すモードです。「いいね」等の評価も当時の内容に戻ります。</div>
+      </div>
+      {{end}}
       <div>
         <button class="fix">確定</button>
       </div>
