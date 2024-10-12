@@ -4,7 +4,6 @@ package main
 
 import (
 	"html/template"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -23,6 +22,7 @@ type Record struct {
 	Content  template.HTML
 	Current  string
 	Sections []Section
+	Err      error
 }
 
 type RootData map[string]Record
@@ -30,21 +30,23 @@ type RootData map[string]Record
 func NewRootData() RootData {
 	rd := RootData{}
 	// "/" -> home
-	meta, content := layoutData("home")
+	meta, content, err := layoutData("home")
 	rd["home"] = Record{
 		Meta:    meta,
 		Content: content,
 		Current: "HOME",
+		Err:     err,
 	}
 	// "/rule/" -> rule
-	meta, content = layoutData("rule")
+	meta, content, err = layoutData("rule")
 	rd["rule"] = Record{
 		Meta:    meta,
 		Content: content,
 		Current: "RULE",
+		Err:     err,
 	}
 	// "/edit/" -> edit
-	meta, content = layoutData("edit")
+	meta, content, err = layoutData("edit")
 	rd["edit"] = Record{
 		Meta:    meta,
 		Content: content,
@@ -70,24 +72,41 @@ func NewRootData() RootData {
 				},
 			},
 		},
+		Err: err,
 	}
 	return rd
 }
 
 // [internal] layoutDataで利用
-func readFile(path string) string {
+func readFile(path string) (string, error) {
 	b, err := os.ReadFile(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(b)
+	return string(b), err
 }
 
-func layoutData(route string) (template.HTML, template.HTML) {
+func layoutData(route string) (template.HTML, template.HTML, error) {
 	fol := filepath.Join("./html", route)
 	contentPath := filepath.Join(fol, "content.html")
 	metaPath := filepath.Join(fol, "meta.html")
-	content := readFile(contentPath)
-	meta := readFile(metaPath)
-	return template.HTML(meta), template.HTML(content)
+	content, err := readFile(contentPath)
+	if err != nil {
+		return "", "", err
+	}
+	meta, err := readFile(metaPath)
+	if err != nil {
+		return "", "", err
+	}
+	return template.HTML(meta), template.HTML(content), err
+}
+
+// NewRootDataはRecord型のmapで、キャッシュとして利用する。
+// NewRootRecordはRecord型で都度ファイルを読み取って返す関数。
+// content.html、とmeta.htmlが/html/*route*に格納されている必要あり
+func NewRootRecord(route string) Record {
+	meta, content, err := layoutData(route)
+	// .Currentは呼び出し下で対応すること
+	return Record{
+		Meta:    meta,
+		Content: content,
+		Err:     err,
+	}
 }

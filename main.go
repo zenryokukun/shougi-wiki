@@ -71,15 +71,15 @@ func (b *WorkBody) steps() (int, error) {
 // 　ex: "/edit/"のhandler対して、"/edit/a/b/c"でアクセスしても"/edit/"のhandlerが効いてしまう。
 // trailing-slashの有無を問わず、同じページを表示するために使う。
 // pathが"/{path}"か"/{path}/"の形ならtrue、以外はfalse
-func checkRoute(target string, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func checkRoute(target string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if path == "/"+target || path == "/"+target+"/" {
 			next.ServeHTTP(w, r)
 			return
 		}
 		http.NotFound(w, r)
-	}
+	})
 }
 
 // 現在の日付をYYYY/MM/DD HH:MM:SS形式でかえす
@@ -107,6 +107,33 @@ func thumbPath(id int) string {
 	idStr := fmt.Sprint(id)
 	fpath := "./public/thumb/" + idStr + ".png"
 	return fpath
+}
+
+// content.html、meta.htmlをリクエストの都度開く（Rootを使わない）ページで利用するハンドラ。
+// 同じ処理になるのでハンドラ化。cacheはサイドバーの表示で使う。
+func defalutLayoutHandler(tmpl *template.Template, cache *WorksCache) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		route := strings.Trim(path, "/")
+		arr := strings.Split(route, "/")
+		if len(arr) > 1 {
+			// route/another-routeのようなパスの場合、第一要素をrouteとみなして処理
+			route = arr[0]
+		}
+
+		rec := NewRootRecord(route)
+		if rec.Err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		rec.Sections = cache.SectionCache
+		err := tmpl.ExecuteTemplate(w, "layout.html", rec)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
 }
 
 func main() {
@@ -156,6 +183,9 @@ func main() {
 	publicDir := filepath.Join(wd, "public")
 	fs := http.FileServer(http.Dir(publicDir))
 
+	// site-policyページ等、一部の静的ページで使うハンドラ。
+	staticPageHandler := defalutLayoutHandler(rootTmpl, cache)
+
 	// routes
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
@@ -164,7 +194,7 @@ func main() {
 			// HOME -> ルートページ、EDIT -> 編集ページ、BOARD -> 掲示板
 			// data := struct{ Current string }{"HOME"}
 			data, ok := rootData["home"]
-			if !ok {
+			if !ok || data.Err != nil {
 				http.NotFound(w, r)
 				return
 			}
@@ -179,9 +209,9 @@ func main() {
 		fs.ServeHTTP(w, r)
 	})
 
-	http.Handle("/rule/", checkRoute("rule", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/rule/", checkRoute("rule", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, ok := rootData["rule"]
-		if !ok {
+		if !ok || data.Err != nil {
 			http.NotFound(w, r)
 			return
 		}
@@ -190,11 +220,14 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
-	}))
+	})))
 
-	http.HandleFunc("/edit/", checkRoute("edit", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("GET /policy/", checkRoute("policy", staticPageHandler))
+	http.Handle("GET /browser-support/", checkRoute("browser-support", staticPageHandler))
+
+	http.Handle("/edit/", checkRoute("edit", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, ok := rootData["edit"]
-		if !ok {
+		if !ok || data.Err != nil {
 			http.NotFound(w, r)
 			return
 		}
@@ -202,7 +235,7 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
-	}))
+	})))
 
 	// 新規作成画面
 	http.HandleFunc("/edit/description", func(w http.ResponseWriter, r *http.Request) {
@@ -483,7 +516,7 @@ func main() {
 		w.WriteHeader(200)
 	})
 
-	http.HandleFunc("GET /works/", checkRoute("works", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("GET /works/", checkRoute("works", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		paramid := query.Get("id")
 
@@ -532,7 +565,7 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
-	}))
+	})))
 
 	http.HandleFunc("POST /api/update-post-eval", func(w http.ResponseWriter, r *http.Request) {
 		body := &UpdatePostEvalBody{}
