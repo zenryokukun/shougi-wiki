@@ -36,7 +36,31 @@ function submitFactory(
     mainStr, tegomaStr, goteTegomaStr, kihuStr
     , mode
 ) {
-    // modeは"revise"か"undo"かnullのいずれかとなる。
+    // modeは"revise","undo","new","resotre"。nullは多分ないはず。
+
+    // restoreは削除作品から戻す場合。画面の入力値は使わない
+    if (mode === "restore") {
+        const param = new URLSearchParams(window.location.search);
+        const idStr = param.get("id");
+        const idInt = parseInt(idStr);
+        const body = JSON.stringify({ id: idInt });
+        return function () {
+            fetch("/api/restore", {
+                method: "post",
+                headers: { "Content-Type": "application/json" },
+                body: body,
+            }).then(res => {
+                if (!res.ok) {
+                    throw new Error("復元に失敗しました、、、後でためしてください")
+                }
+                return res.text();
+            }).then(data => {
+                alert(data);
+                window.location.href = "/";
+            }).catch(err => alert(err))
+        }
+    }
+
     // undoは過去の履歴から戻す場合。画面の入力値は使わない。
     if (mode === "undo") {
         const param = new URLSearchParams(window.location.search);
@@ -53,7 +77,10 @@ function submitFactory(
                     throw new Error("更新に失敗しました、、、後で試してください");
                 }
                 return res.text();
-            }).then(data => alert(data))
+            }).then(data => {
+                alert(data);
+                window.location.href = "/";
+            })
                 .catch(err => alert(err));
         }
     }
@@ -110,8 +137,9 @@ function submitFactory(
             }
             return res.text();
         }).then(txt => {
-            // 正常。メッセージを表示。
-            alert(txt)
+            // 正常。メッセージを表示し、ホーム画面に戻る。
+            alert(txt);
+            window.location.href = "/";
         })
             .catch(err => alert(err));
         // 2度目は押せなくする

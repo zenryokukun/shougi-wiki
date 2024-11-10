@@ -1,0 +1,125 @@
+h1 {
+    font-size: 32px;
+    font-weight: 600;
+    font-family: Arial, Helvetica, sans-serif;
+    border-left: 5px solid var(--primary);
+    padding-left: 2rem;
+    margin-left: 2rem;
+    margin-top: 3rem;
+}
+
+.section-header {
+    position: relative;
+    margin-top: 3rem;
+    margin-left: 2rem;
+    margin-right: 2rem;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgb(0 0 0 / 12%);
+    display: flex;
+    align-items: center;
+    column-gap: 50px;
+}
+
+.section-header a {
+    text-decoration-style: dotted;
+    color: darkslateblue;
+}
+
+h2 {
+    margin-top: 3rem;
+    font-size: 28px;
+    font-weight: 500;
+    /* border-bottom: 1px solid rgb(0 0 0 / 12%);
+    padding-bottom: 1rem;
+    margin-left: 2rem;
+    margin-right: 2rem; */
+    margin: 0;
+    padding: 0;
+}
+
+.works-list-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    color: var(--text-medium);
+    font-size: 0.9rem;
+    column-gap: 1.2rem;
+    row-gap: 1.5rem;
+    margin-left: 2rem;
+    margin-right: 2rem;
+    margin-bottom: 2rem;
+}
+
+.works-list-item {
+    max-width: 350px;
+    position: relative;
+    /* padding: 1rem 1rem 0 1rem;
+    box-shadow: 0 2px 5px 0 rgba(0, 0, 0, .16), 0 2px 10px 0 rgba(0, 0, 0, .12); */
+}
+
+.title,
+.author {
+    /*折り返しを防ぐ*/
+    height: 21.6px;
+    word-break: break-all;
+    overflow: hidden;
+}
+
+.light-label {
+    color: var(--text-medium);
+    font-weight: bold;
+}
+
+.link {
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+    font-size: 1rem;
+}
+
+.works-list-item img {
+    width: 100%;
+    height: auto;
+}
+
+.disabled {
+    pointer-events: none;
+    cursor: default;
+    color: gray !important;
+    /* Optional: to show it as inactive */
+    text-decoration: none;
+    user-select: none;
+}
+
+@media screen and (max-width:950px) {
+    .works-list-wrapper {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media screen and (max-width:850px) {
+
+    /* root.cssをオーバーライド */
+    .main-wrapper {
+        order: 1;
+    }
+
+    /* root.cssをオーバーライド */
+    .sidebar-wrapper {
+        order: 2;
+    }
+}
+
+
+@media screen and (max-width:600px) {
+    .works-list-wrapper {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+
+    .works-list-item {
+        max-width: none;
+        width: 90%;
+    }
+}

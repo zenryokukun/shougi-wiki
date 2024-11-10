@@ -16,9 +16,14 @@ CREATE TABLE WORKS(
     GOOD INTEGER,
     BAD INTEGER,
     -- 修正要望数
-    DEMAND INTEGER
+    DEMAND INTEGER,
     -- バックアップから復元した時に設定される
-    BACKUP_SEQ INTEGER
+    BACKUP_SEQ INTEGER,
     -- 編集した時に記録される修正内容
-    COMMENT TEXT
+    COMMENT TEXT,
+    -- 削除した時に設定される
+    DEL_FLG INTEGER,
+    DEL_REASON TEXT,
+    DEL_BY TEXT,
+    DEL_DATE INTEGER
 );

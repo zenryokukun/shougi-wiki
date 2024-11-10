@@ -182,7 +182,7 @@ div:has(>.submit) {
   align-items: center;
   column-gap: 2rem; */
   position: relative;
-  text-align: center;
+  /* text-align: center; */
   margin-top: 1.5rem;
   margin-left: auto;
   margin-right: auto;
@@ -190,21 +190,90 @@ div:has(>.submit) {
 }
 
 .works-other-content a:nth-child(2) {
-  margin-left: 2rem;
+  margin-left: 1rem;
 }
 
-.works-other-content svg {
-  fill: var(--text-medium);
-  width: 25px;
-}
-
-.revise {
+.edit-icon-wrapper {
   position: absolute;
-  display: inline-block;
+  display: flex;
+  align-items: center;
   right: 0px;
-  color: var(--text-medium);
+  top: 0px;
   font-size: 0.9rem;
   font-family: monospace, sans-serif;
+  color: var(--text-medium);
+}
+
+.edit-icon-wrapper svg {
+  height: 25px;
+  fill: var(--text-medium);
+}
+
+.edit-icon-wrapper a {
+  color: inherit;
+}
+
+.edit-icon-wrapper a:visited {
+  color: inherit;
+}
+
+.modal {
+  width: 100vw;
+  /*vhだと何故かwidthが狭まるとフルで高さ取らなくなるので、、、*/
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  display: flex;
+  justify-content: center;
+  z-index: 2;
+}
+
+.modal form {
+  position: absolute;
+  top: 200px;
+  display: flex;
+  flex-direction: column;
+  padding: 25px;
+  background-color: white;
+  row-gap: 1rem;
+  border-radius: 10px;
+}
+
+.modal label {
+  display: block;
+  color: var(--text-medium);
+}
+
+.modal textarea,
+.modal input {
+  padding: 7px;
+  width: 500px;
+}
+
+.modal textarea {
+  height: 150px;
+}
+
+.modal button {
+  height: 50px;
+  width: 150px;
+  align-self: center;
+}
+
+.modal svg {
+  position: absolute;
+  height: 75px;
+  top: 100px;
+  right: calc(100vw/2 -37.5px);
+  fill: white;
+}
+
+@media screen and (min-width:1025px) {
+  .modal svg:hover {
+    fill: var(--text-light);
+  }
 }
 
 @media screen and (max-width:1024px) {
@@ -245,5 +314,15 @@ div:has(>.submit) {
 
   #prev {
     margin-left: 1rem;
+  }
+
+  .modal form {
+    width: 80%;
+  }
+
+  .modal input,
+  .modal textarea {
+    width: 90%;
+    font-size: 0.9rem;
   }
 }

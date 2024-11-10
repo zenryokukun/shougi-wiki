@@ -98,7 +98,9 @@ func currentDateUnix() int64 {
 
 func unixToStr(unix int64) string {
 	t := time.Unix(unix, 0)
-	tstr := t.Format("2006/01/02 15:04:05")
+	// format: "2006/01/02 15:04:05"
+	// 秒は入れない
+	tstr := t.Format("2006/01/02 15:04")
 	return tstr
 }
 
@@ -158,7 +160,7 @@ func main() {
 
 	// html template
 	// tmpl, err := template.ParseFiles("./html/edit-description.html", "./html/preview.html")
-	tmpl, err := template.New("edit-description").Funcs(customFunc).ParseFiles("./html/edit-description.html", "./html/preview.html")
+	tmpl, err := template.New("edit-description").Funcs(customFunc).ParseFiles("./html/edit-description.html", "./html/preview.html", "./html/deleted-works.html", "./html/works-list.html")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -170,7 +172,7 @@ func main() {
 	}
 
 	// 詰将棋のコンテンツ部分のtemplate
-	worksTmpl, err := template.New("works").Funcs(customFunc).ParseFiles("./html/works.html", "./html/works-meta.html", "./html/posts.html")
+	worksTmpl, err := template.New("works").Funcs(customFunc).ParseFiles("./html/works.html", "./html/posts.html")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -369,9 +371,10 @@ func main() {
 			fmt.Println(err)
 		}
 
-		// preview.htmlテンプレートには３つのモード(revise,new,undo)がある。
+		// preview.htmlテンプレートには３つのモード(revise,new,undo,restore)がある。
 		// /previewエンドポイントでは、revise、newのいずれかとなる。
 		// /undoエンドポイントでもpreview.htmlを使い、一律undoとなる
+		// /restoreエンドポイントでもpreview.htmlを使い、一律restoreとなる
 		var mode string
 		if isReviseMode {
 			mode = "revise"
@@ -413,7 +416,7 @@ func main() {
 		if len(dataArr) != 2 {
 			fmt.Println("画像のdataURL部分が不正です。リクエスト内の画像は以下のとおり:")
 			fmt.Println(body.Pic)
-			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。"))
+			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。ホーム画面に戻ります。"))
 			return
 		}
 
@@ -424,7 +427,7 @@ func main() {
 			fmt.Println(err)
 			fmt.Println("画像をbase64からデコードできませんでした。リクエスト内の画像は以下のとおり:")
 			fmt.Println(body.Pic)
-			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。"))
+			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。ホーム画面に戻ります。"))
 			return
 		}
 
@@ -434,7 +437,7 @@ func main() {
 			fmt.Println(err)
 			fmt.Println("ファイルの保存先が取得できませんでした。保存先パス：")
 			fmt.Println(fpath)
-			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。"))
+			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。ホーム画面に戻ります。"))
 			return
 		}
 		defer f.Close()
@@ -443,11 +446,11 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 			fmt.Println("ファイルの書き込みが出来ませんでした")
-			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。"))
+			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。ホーム画面に戻ります。"))
 			return
 		}
 
-		w.Write([]byte("登録成功しました。反映まで少し時間がかかる場合があります。編集ページは全て閉じてOKです。作品投稿ありがとうございましたm(__)m"))
+		w.Write([]byte("登録成功しました。反映まで少し時間がかかる場合があります。作品投稿ありがとうございましたm(__)m。ホーム画面に戻ります。"))
 
 		// リンクのcacheを更新
 		cache.Update(db)
@@ -471,7 +474,7 @@ func main() {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write([]byte("更新成功"))
+		w.Write([]byte("更新成功しました。反映まで少し時間がかかる場合があります。編集ありがとうございましたm(__)m。ホーム画面に戻ります。"))
 		// @Todo
 		//  - update cache
 		cache.Update(db)
@@ -714,8 +717,6 @@ func main() {
 		wc.PublishDate = dates.PublishDate
 		wc.EditDate = dates.EditDate
 
-		fmt.Println(wc.Dates.EditDate, wc.Dates.PublishDate)
-
 		wBuf := &bytes.Buffer{}
 		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
 		if err != nil {
@@ -760,9 +761,237 @@ func main() {
 		cache.Update(db)
 	})
 
+	// restoreモードでpreview.htmlを表示する
+	// @TODO /undoとだいぶ被るので共通化できるところはしたほうが良いかも。余力のあるときに。
+	http.HandleFunc("GET /restore/", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		idStr := query.Get("id")
+		id64, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		id := int(id64)
+
+		wr, err := getWork(db, id)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// preview.htmlに渡すデータ（WorksContent型）を作成
+		form := EditFormData{
+			WorkId:      idStr,
+			Explanation: wr.Explanation,
+			Author:      wr.Author,
+			Editor:      wr.Editor,
+			Title:       wr.Title,
+		}
+
+		dates := Dates{
+			PublishDate: wr.PublishDate,
+			EditDate:    wr.EditDate,
+		}
+
+		wc := &WorksContent{
+			EditFormData: form,
+			Dates:        dates,
+			Main:         wr.Main,
+			Tegoma:       wr.Tegoma,
+			GoteTegoma:   wr.GoteTegoma,
+			Kihu:         wr.Kihu,
+			KihuJ:        wr.KihuJ,
+			IsPreview:    true,
+			Tesu:         wr.Tesu,
+		}
+
+		wBuf := &bytes.Buffer{}
+		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		wdata := struct {
+			Mode    string
+			Content template.HTML
+		}{
+			"restore",
+			template.HTML(wBuf.String()),
+		}
+
+		err = tmpl.ExecuteTemplate(w, "preview.html", wdata)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
+
+	http.HandleFunc("POST /api/restore", func(w http.ResponseWriter, r *http.Request) {
+		var bd struct {
+			Id int `json:"id"`
+		}
+		dec := json.NewDecoder(r.Body)
+		err := dec.Decode(&bd)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		err = restoreWork(db, bd.Id)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte("更新成功しました。反映まで少し時間がかかる場合があります。ホーム画面に戻ります。"))
+		cache.Update(db)
+	})
+
+	http.HandleFunc("GET /deleted-works/", func(w http.ResponseWriter, r *http.Request) {
+		// deleteされた作品の一覧
+		wk, err := getDeletedWorks(db)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		buf := &bytes.Buffer{}
+		err = tmpl.ExecuteTemplate(buf, "deleted-works.html", wk)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		wdata := Record{
+			Meta: template.HTML(`
+			<meta name="description" content="削除作品の一覧です。削除された作品を元に戻すことができます。">
+			<link rel="stylesheet" href="/css/deleted-works.css">
+			<script src="/js/deleted-works/main.js" type="module"></script>
+			<title>削除作品一覧</title>
+			`),
+			Content:  template.HTML(buf.String()),
+			Sections: cache.SectionCache,
+		}
+
+		err = rootTmpl.ExecuteTemplate(w, "layout.html", wdata)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+
+	// workを削除するときに呼ばれるエンドポイント
+	http.HandleFunc("POST /api/delete", func(w http.ResponseWriter, r *http.Request) {
+		dec := json.NewDecoder(r.Body)
+		data := struct {
+			Id     int    `json:"id"`
+			Editor string `json:"editor"`
+			Reason string `json:"reason"`
+		}{}
+		err := dec.Decode(&data)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		// @Todo dbの削除処理
+		deleteWork(db, data.Id, data.Editor, data.Reason)
+		w.Write([]byte("削除成功しました。"))
+		cache.Update(db)
+	})
+
+	// 作品一覧ページ
+	http.HandleFunc("GET /works-list/", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		// 手数。0なら全量
+		tesuStr := query.Get("tesu")
+		// 手数指定の際に利用。表示作品には上限があるため、次の作品を取得できるように次の検索開始位置を保持
+		startStr := query.Get("start")
+		var tesu, start int64
+
+		if len(tesuStr) == 0 {
+			// tesuのクエリパラメタが無い場合、全量（0）とする
+			tesu = 0
+		} else {
+			tesu, err = strconv.ParseInt(tesuStr, 10, 64)
+			if err != nil {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+
+		if len(startStr) == 0 {
+			start = 0
+		} else {
+			start, err = strconv.ParseInt(startStr, 10, 64)
+			if err != nil {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+
+		wlist, err := getWorksList(db, int(start), int(tesu))
+		if err != nil || len(wlist) == 0 {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// 手数指定の場合、（次のデータを取れるよう）取得したリストの中から
+		// 最大のIDを設定する
+		var lastId int
+		if len(wlist) == 1 {
+			lastId = wlist[0].Max()
+		}
+
+		wbuf := &bytes.Buffer{}
+		wkTmpl := struct {
+			IsSingle bool
+			LastId   int
+			List     []WorkListTmpl
+		}{
+			IsSingle: len(wlist) == 1,
+			LastId:   lastId,
+			List:     wlist,
+		}
+		err = tmpl.ExecuteTemplate(wbuf, "works-list.html", wkTmpl)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		data := Record{
+			Meta: `
+			<meta name="description" content="投稿作品の一覧ページです。">
+			<link rel="stylesheet" href="/css/works-list.css">
+			<script src="/js/works-list/main.js" type="module"></script>
+			<title>作品一覧</title>
+			`,
+			Content:  template.HTML(wbuf.String()),
+			Sections: cache.SectionCache,
+		}
+
+		err = rootTmpl.ExecuteTemplate(w, "layout.html", data)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+
 	// localhostをつけないと、起動時にfw許可のメッセージが出る
 	// つけると、スマホ等別デバイスからのアクセスができなくなる
-	http.ListenAndServe("localhost:8000", nil)
-	// http.ListenAndServe(":8000", nil)
+	// http.ListenAndServe("localhost:8000", nil)
+	http.ListenAndServe(":8000", nil)
 
 }

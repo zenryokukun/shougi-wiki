@@ -5,6 +5,7 @@ import initToggle from "../answer.js";
 import initEval from "./eval.js";
 import initPostEval from "./post.js";
 import getParamId from "./param.js";
+import { showModal } from "./modal.js";
 
 function init() {
     const cvs = document.querySelector("canvas");
@@ -24,6 +25,8 @@ function init() {
     initGetNextPost();
     initOtherWork();
     initRevise();
+    const trash = document.querySelector(".delete")
+    trash.addEventListener("click", showModal);
 }
 
 /**「編集する」を押したときの処理 */
@@ -57,6 +60,11 @@ function initOtherWork() {
             })
             .then(value => window.location.href = "/works/?id=" + value)
             .catch(err => {
+                // paramはuRLSearchParams型。getで値をし、取得した値はstringとなる点に注意
+                const v = param.get("value");
+                const which = v === "1" ? "次" : "前";
+                const msg = `この手数では、${which}の作品はありません。`;
+                alert(msg);
                 node.classList.add("posts-fetch-disabled");
             })
     }
@@ -67,7 +75,7 @@ function initOtherWork() {
         customFetch(next, param);
     })
 
-    const prev = document.getElementById("#prev");
+    const prev = document.getElementById("prev");
     // prevはnullの場合もある
     if (prev === null) return;
     prev.addEventListener("click", e => {

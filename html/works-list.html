@@ -1,0 +1,48 @@
+<!-- 作品一覧ページのコンテンツ部分 -->
+<div class="works-list-page-container" data-lastid="{{.LastId}}">
+  <h1>作品一覧</h1>
+  <div>
+    {{range .List}}
+    <section>
+      <div class="section-header">
+        <h2>{{.Heading}}</h2>
+        {{if $.IsSingle}}
+        <a id="next-list" href="javascript:void(0)">次へ</a>
+        {{else}}
+        <a href="/works-list/?tesu={{.Tesu}}">もっと見る</a>
+        {{end}}
+      </div>
+      <div class="works-list-wrapper">
+        {{range .WorkList}}
+        <div class="works-list-item">
+          <div class="work-id">
+            <span class="light-label">作品ID</span>
+            <span>{{.Id}}</span>
+          </div>
+          <div class="title">
+            <span class="light-label">タイトル</span>
+            <span>{{.Title}}</span>
+          </div>
+          <div class="author">
+            <span class="light-label">作者</span>
+            <span>{{.Author}}</span>
+          </div>
+          <div class="publish-date">
+            <span class="light-label">投稿日</span>
+            <span>{{.PublishDate}}</span>
+          </div>
+          <div class="edit-date">
+            <span class="light-label">編集日</span>
+            <span>{{.EditDate}}</span>
+          </div>
+          <div>
+            <img src="{{.Thumb}}" alt="投稿作品のサムネイル" width="490px" height="540px">
+          </div>
+          <a class="link" href="/works/?id={{.Id}}">作品を見る</a>
+        </div>
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+  </div>
+</div>

@@ -1,0 +1,172 @@
+/*コンテンツ部分の全体のコンテナ*/
+.deleted-page-container {
+    padding: 2rem;
+}
+
+.deleted-page-container h1 {
+    text-align: center;
+}
+
+.deleted-page-container p {
+    border-bottom: 1px solid rgb(0 0 0 / 12%);
+    padding-bottom: 1rem;
+}
+
+/* 削除作品一覧のコンテナ */
+.deleted-items-container {
+    margin-top: 3rem;
+    margin-left: 3rem;
+    margin-right: 3rem;
+
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    column-gap: 1rem;
+    row-gap: 2rem;
+    font-size: 0.9rem;
+    color: var(--text-medium);
+}
+
+.deleted-item {
+    width: 300px;
+    position: relative;
+    user-select: none;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgb(0 0 0 / 12%);
+}
+
+.deleted-item a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.delete-item a:visited {
+    color: inherit;
+}
+
+.deleted-item>.title,
+.deleted-item>.kihu {
+    height: 21.6px;
+    overflow: hidden;
+    /* text-wrap: nowrap; */
+    /* word-break: break-all; */
+}
+
+.title {
+    word-break: break-all;
+}
+
+.delete-icons {
+    display: flex;
+    justify-content: center;
+    column-gap: 2rem;
+}
+
+.delete-icons svg {
+    width: 25px;
+    fill: var(--text-medium);
+}
+
+.light-icon {
+    fill: var(--text-light) !important;
+}
+
+.delete-icons span {
+    font-size: 14px;
+}
+
+.deleted-item img {
+    width: 100%;
+    height: auto;
+}
+
+.light-label {
+    color: var(--text-medium);
+    font-weight: bold;
+}
+
+.dark-label {
+    color: #999999;
+    font-weight: bold;
+}
+
+.deleted-item .hide {
+    display: none;
+}
+
+.deleted-item .full-info {
+    position: absolute;
+    top: 30px;
+    left: 0px;
+    background-color: #333;
+    color: #f1f1f1;
+    padding: 1rem;
+    border-radius: 5px;
+    z-index: 2;
+    width: 270px;
+    box-shadow: 0 2px 5px 0 rgba(0, 0, 0, .16), 0 2px 10px 0 rgba(0, 0, 0, .12);
+}
+
+.tips {
+    margin-top: 3rem;
+    color: #888888;
+    font-size: 0.8rem;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+@media screen and (max-width:1067px) {
+    .deleted-items-container {
+        margin-left: 0px;
+        margin-right: 0px;
+    }
+}
+
+@media screen and (max-width:967px) {
+    .deleted-items-container {
+        justify-content: center;
+    }
+}
+
+@media screen and (max-width:850px) {
+
+    /* root.cssをオーバーライド */
+    .main-wrapper {
+        order: 1;
+    }
+
+    /* root.cssをオーバーライド */
+    .sidebar-wrapper {
+        order: 2;
+    }
+}
+
+@media screen and (max-width:698px) {
+    .deleted-items-container {
+        /* サイドバーが消えて表示領域が増えるため、space-betweenに戻す */
+        justify-content: center;
+    }
+
+    .deleted-item {
+        width: 45%;
+    }
+
+    .deleted-item .full-info {
+        width: 45%;
+    }
+}
+
+@media screen and (max-width:600px) {
+    .deleted-item {
+        width: 90%;
+    }
+
+    .deleted-item .full-info {
+        width: 90%;
+    }
+}
+
+/* @media screen and (min-width:601px) {
+    .deleted-item:hover>.full-info {
+        display: block;
+    }
+} */

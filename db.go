@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const LONG = -1
+const LONG = 99999
 
 // *sql.DBや*sql.TxでもQueryRowが使えるように、、、
 type Transer interface {
@@ -176,9 +176,55 @@ func (wr *WorkRawRecord) parse() WorkRecord {
 	return rec
 }
 
+// サイドバーの作品リンク用
 type WorkLink struct {
 	Id    int
 	Title string
+}
+
+// 作品一覧に表示する情報
+type WorkListData struct {
+	Id          int
+	Tesu        int
+	Title       string
+	Author      string
+	Kihu        string
+	PublishDate string
+	EditDate    string
+	Good        int
+	Bad         int
+	Thumb       string
+}
+
+type WorkList []WorkListData
+
+// tempalteに渡す用
+type WorkListTmpl struct {
+	Heading string
+	Tesu    int
+	WorkList
+}
+
+// WorkListフィールドの最大IDを取得
+func (tmp WorkListTmpl) Max() int {
+	max := 0
+	for _, data := range tmp.WorkList {
+		if max <= data.Id {
+			max = data.Id
+		}
+	}
+	return max
+}
+
+// 削除されたWorkのサマリ情報
+type DeletedWork struct {
+	Id      int
+	Title   string
+	Kihu    string
+	DelDate string
+	Reason  string
+	// サムネのパス
+	Thumb string
 }
 
 type WorksMap map[int][]WorkLink
@@ -198,7 +244,7 @@ func (wc *WorksCache) Update(db *sql.DB) {
 func (c WorksMap) update(db *sql.DB) {
 	// @Todo 全量取得しているんどえ、直近N個に絞るような仕組みを導入
 	rows, err := db.Query(`
-		SELECT ID,TESU,TITLE FROM WORKS
+		SELECT ID,TESU,TITLE FROM WORKS WHERE DEL_FLG IS NULL
 		ORDER BY TESU ASC,ID ASC;
 	`)
 	if err != nil {
@@ -226,7 +272,11 @@ func (c WorksMap) section() []Section {
 	keys := c.Sort()
 	for _, key := range keys {
 		sec := Section{}
-		sec.Heading = fmt.Sprintf("%v手詰集", key)
+		if key == LONG {
+			sec.Heading = "長手数集"
+		} else {
+			sec.Heading = fmt.Sprintf("%v手詰集", key)
+		}
 		sec.IsLink = true
 		wk := c[key]
 		for _, v := range wk {
@@ -326,18 +376,6 @@ func updateWork(db *sql.DB, bd *WorkBody) error {
 	if err != nil {
 		return err
 	}
-	// var bkup sql.NullInt64
-	// row := tx.QueryRow(`SELECT BACKUP_SEQ FROM WORKS WHERE ID=?`, bd.Id)
-	// err = row.Scan(&bkup)
-	// if err != nil {
-	// 	txErr := tx.Rollback()
-	// 	if txErr != nil {
-	// 		fmt.Println(txErr)
-	// 	}
-	// 	return err
-	// }
-	// // バックアップから復元されている場合true
-	// isRestoredWork := bkup.Valid
 
 	// バックアップ日時
 	now := currentDateUnix()
@@ -732,7 +770,9 @@ func getWork(db *sql.DB, id int) (WorkRecord, error) {
 			PUBLISH_DATE,EDIT_DATE,
 			GOOD,BAD,DEMAND,
 			BACKUP_SEQ
-		FROM WORKS WHERE ID=?
+		FROM WORKS 
+		WHERE 
+			ID=? 
 	`, id)
 
 	var raw WorkRawRecord
@@ -748,9 +788,263 @@ func getWork(db *sql.DB, id int) (WorkRecord, error) {
 		fmt.Println(err)
 		msg := fmt.Sprintf("workテーブルからデータを取れませんでした。ID:%v", id)
 		err = errors.New(msg)
+		return WorkRecord{}, err
 	}
 	rec := raw.parse()
 	return rec, err
+}
+
+// WORKSの削除フラグを設定する
+func deleteWork(db *sql.DB, id int, editor, reason string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	dt := currentDateUnix()
+
+	_, err = tx.Exec(`
+		UPDATE WORKS SET
+		  DEL_FLG=?
+		  ,DEL_BY=?
+		  ,DEL_REASON=?
+		  ,DEL_DATE=?
+		WHERE ID=?
+	`, 1, editor, reason, dt, id)
+
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	return err
+}
+
+// WORKテーブルを復元（削除から戻す）
+func restoreWork(db *sql.DB, id int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	_, err = tx.Exec(`
+		UPDATE WORKS SET
+		  DEL_FLG=NULL
+		  ,DEL_BY=NULL
+		  ,DEL_REASON=NULL
+		  ,DEL_DATE=NULL
+		WHERE ID=?
+	`, id)
+
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+
+	return err
+}
+
+// 手数に応じたworksを取得。作品一覧ページで利用
+// 手数を問わずに抽出したい場合、tesuは0で呼ぶこと
+func getWorksList(db *sql.DB, lastId, tesu int) ([]WorkListTmpl, error) {
+	var query string
+	// 長手数はまとめるので閾値。
+	longThresh := 11
+
+	wmap := map[int]WorkList{}
+	var tmpls []WorkListTmpl
+
+	if tesu == 0 {
+		// 全量
+		// db.QueryRowのパラメタ数をそろえるためにTESU>=?としている。呼び出し時に0を指定すること、、、
+		query = `
+			SELECT 
+				ID,TESU,TITLE,KIHU,AUTHOR,PUBLISH_DATE,EDIT_DATE,GOOD,BAD
+			FROM WORKS
+			WHERE 
+				ID>=?
+				AND TESU>=?
+				AND DEL_FLG IS NULL
+			ORDER BY TESU,ID
+			LIMIT 50
+		`
+	} else {
+		// 手数指定。長手数は閾値を超える場合はまとめる
+		if tesu > longThresh {
+			// 長手数の場合　WHEREのTESUが>=になってる
+			query = `
+			SELECT 
+				ID,TESU,TITLE,KIHU,AUTHOR,PUBLISH_DATE,EDIT_DATE,GOOD,BAD 
+			FROM WORKS
+			WHERE 
+				ID>=?
+				AND TESU>11
+				AND DEL_FLG IS NULL
+			ORDER BY TESU,ID
+			LIMIT 20
+			`
+		} else {
+			// 短手数　TESU＝？
+			query = `
+			SELECT 
+				ID,TESU,TITLE,KIHU,AUTHOR,PUBLISH_DATE,EDIT_DATE,GOOD,BAD 
+			FROM WORKS
+			WHERE 
+				ID>=?
+				AND TESU=?
+				AND DEL_FLG IS NULL
+			ORDER BY TESU,ID
+			LIMIT 20
+			`
+		}
+	}
+
+	rows, err := db.Query(query, lastId, tesu)
+	if err != nil {
+		return tmpls, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, tesu int
+		var title, kihu, author string
+		var pdate int64
+		var edate sql.NullInt64
+		var good, bad int
+		err := rows.Scan(&id, &tesu, &title, &kihu, &author, &pdate, &edate, &good, &bad)
+
+		if err != nil {
+			return tmpls, err
+		}
+
+		// kihuを整形
+		var kArr []string
+		err = json.Unmarshal([]byte(kihu), &kArr)
+		if err != nil {
+			return tmpls, err
+		}
+		if len(kArr) <= 1 {
+			return tmpls, errors.New("length of kihu is less than 1")
+		}
+		// 最初の要素は空白なので落とす
+		kArr = kArr[1:]
+		kihuStr := kArr[0]
+		for _, k := range kArr[1:] {
+			kihuStr += " " + k
+		}
+		// pdate,edateをYYYY-MM-DDに変換
+		pdateStr := unixToStr(pdate)
+		var edateStr string
+		if edate.Valid {
+			edateStr = unixToStr(edate.Int64)
+		} else {
+			edateStr = "-"
+		}
+		// サムネのパス
+		thumb := "/thumb/" + fmt.Sprint(id) + ".png"
+
+		data := WorkListData{
+			Id:          id,
+			Tesu:        tesu,
+			Title:       title,
+			Kihu:        kihuStr,
+			Author:      author,
+			PublishDate: pdateStr,
+			EditDate:    edateStr,
+			Good:        good,
+			Bad:         bad,
+			Thumb:       thumb,
+		}
+
+		if tesu > longThresh {
+			wmap[LONG] = append(wmap[LONG], data)
+		} else {
+			wmap[tesu] = append(wmap[tesu], data)
+		}
+	}
+
+	// WorkListMap型をWorkListTmpl型に変換
+	// まずはmapのキーを取得
+	var keys []int
+	for k := range wmap {
+		keys = append(keys, k)
+	}
+	// mapだと走査時の順番が保証されないので、キーをソートしてvalueにアクセス
+	slices.Sort(keys)
+	for _, key := range keys {
+		tmpl := WorkListTmpl{
+			Tesu:     key,
+			WorkList: wmap[key],
+		}
+		if key == LONG {
+			tmpl.Heading = "長手数作品"
+		} else {
+			tmpl.Heading = fmt.Sprintf("%v手詰作品", key)
+		}
+		tmpls = append(tmpls, tmpl)
+	}
+	return tmpls, err
+}
+
+// 削除されたworksを取得
+func getDeletedWorks(db *sql.DB) ([]DeletedWork, error) {
+
+	var list []DeletedWork
+
+	rows, err := db.Query(`
+		SELECT 
+			ID,TITLE,KIHU,DEL_DATE,DEL_REASON 
+		FROM WORKS
+		WHERE DEL_FLG = 1
+		ORDER BY TESU
+		LIMIT 50
+	`)
+	if err != nil {
+		return list, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, dateInt int
+		var title, reason, kihuJ string
+		err := rows.Scan(&id, &title, &kihuJ, &dateInt, &reason)
+		if err != nil {
+			return list, err
+		}
+		// unix->文字列
+		dateStr := unixToStr(int64(dateInt))
+		// json形式の棋譜→文字列。最初の要素は空白なので除外
+		var kihuArr []string
+		err = json.Unmarshal([]byte(kihuJ), &kihuArr)
+		if err != nil {
+			return list, err
+		}
+		kihuArr = kihuArr[1:]
+		var kihu string
+		for _, k := range kihuArr {
+			kihu += " " + k
+		}
+
+		// サムネのパス
+		thumb := "/thumb/" + fmt.Sprint(id) + ".png"
+		list = append(list, DeletedWork{
+			Id:      id,
+			Title:   title,
+			Kihu:    kihu,
+			DelDate: dateStr,
+			Reason:  reason,
+			Thumb:   thumb,
+		})
+	}
+
+	return list, err
 }
 
 // WORKSテーブルから最大IDを取得。サムネ保存場所に必要
@@ -895,14 +1189,14 @@ func getNextWork(db *sql.DB, id, tesu, val int) (int, error) {
 	if val > 0 {
 		query = `
 		SELECT ID FROM WORKS 
-		WHERE TESU=? AND ID>?
+		WHERE TESU=? AND ID>? AND DEL_FLG IS NULL
 		ORDER BY ID ASC
 		LIMIT 1
 		`
 	} else {
 		query = `
 		SELECT ID FROM WORKS 
-		WHERE TESU=? AND ID<?
+		WHERE TESU=? AND ID<? AND DEL_FLG IS NULL
 		ORDER BY ID DESC
 		LIMIT 1
 		`

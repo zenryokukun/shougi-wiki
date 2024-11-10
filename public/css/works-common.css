@@ -12,6 +12,9 @@
   font-weight: 500;
   background-color: #eaeaea;
   border-radius: 15px;
+  /* アルファベットだとスペースがない限り改行してくれないので、強制的に、、、 */
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 /* .title-wrapper h1::before { */
