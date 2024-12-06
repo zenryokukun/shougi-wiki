@@ -6,6 +6,9 @@ function getParamTesu() {
 function main() {
     // 単一の手数作品の表示上限がある。次の一覧を取得する処理
     const lnk = document.querySelector("#next-list");
+    // 全量表示の場合は#next-listの要素は存在しないのでリターン
+    if (lnk === null) return;
+
     // 表示されている作品で、最大のID
     const idNode = document.querySelector("[data-lastid]");
     const idStr = idNode.dataset.lastid

@@ -3,7 +3,7 @@ h1 {
     font-weight: 600;
     font-family: Arial, Helvetica, sans-serif;
     border-left: 5px solid var(--primary);
-    padding-left: 2rem;
+    padding-left: 1rem;
     margin-left: 2rem;
     margin-top: 3rem;
 }

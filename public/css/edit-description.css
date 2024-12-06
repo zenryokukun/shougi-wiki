@@ -8,6 +8,10 @@
   --border-input: 1.5px solid rgb(118, 118, 118);
 }
 
+* {
+  box-sizing: border-box;
+}
+
 h1 {
   text-align: center;
   border-bottom: 1px solid lightgray;
@@ -33,12 +37,14 @@ legend {
   display: flex;
   position: relative;
   justify-content: center;
-
 }
 
 /*左側のcanvasエリア*/
 .left-wrapper {
   border-right: 1px solid lightgray;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* canvasとアイコンのエリア */
@@ -48,6 +54,10 @@ legend {
   top: 0px;
   margin-top: 1rem;
   /* margin: auto; */
+}
+
+canvas {
+  width: 100%;
 }
 
 .icon-wrapper {
@@ -86,9 +96,11 @@ legend {
   display: flex;
   flex-direction: column;
   padding: 0 2rem 2rem 2rem;
-  margin: 2rem 2rem 2rem 4rem;
+  /* margin: 2rem 2rem 2rem 4rem; */
+  margin: 2rem 1rem 2rem 1rem;
   background-color: var(--light-bg);
   border-radius: 15px;
+  width: 55%;
 }
 
 .explanation-wrapper ol {
@@ -208,14 +220,10 @@ table {
 thead th {
   font-weight: 600;
   text-align: left;
-  padding-right: 1rem;
-  text-align: center;
+  /* padding-right: 1rem; */
 }
 
-tbody * {
-  padding-right: 10px;
-  padding-top: 1rem;
-  border-bottom: 1px dotted darkgray;
+tbody {
   font-weight: normal;
   cursor: pointer;
   user-select: none;
@@ -224,21 +232,30 @@ tbody * {
   color: var(--text-medium);
 }
 
+th[scope='row'] {
+  text-align: left;
+}
+
+tr {
+  display: grid;
+  grid-template-columns: 1fr 2fr 4fr 2fr;
+  /* padding-right: 10px; */
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dotted darkgray;
+}
+
+/* 
 .narrower {
   width: 20px;
-}
+} */
 
-@media screen and (min-width:1024px) {
-  .explanation-wrapper {
-    width: 50%;
-  }
-}
 
 @media screen and (max-width:1200px) {
-  .explanation-wrapper {
-    margin: 1rem;
-
-  }
+  /* .explanation-wrapper {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  } */
 }
 
 @media screen and (max-width:1024px) {
@@ -264,7 +281,13 @@ tbody * {
   }
 
   .explanation-wrapper {
-    margin: 2rem 2rem 2rem 4rem;
+    width: 80%;
+  }
+}
+
+@media screen and (max-width:950px) {
+  .explanation-wrapper {
+    width: 90%;
   }
 }
 
@@ -280,12 +303,15 @@ tbody * {
 
   .explanation-wrapper {
     align-items: center;
-    margin: 2rem 1rem 2rem 1rem;
-    padding: 0 0 2rem 0rem;
+    /* margin: 2rem 1rem 2rem 1rem; */
+    /* padding: 0 0 2rem 0rem; */
+    width: 95%;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   .explanation-wrapper>* {
-    width: 90%;
+    width: 100%;
   }
 
   .steps {
@@ -307,11 +333,11 @@ tbody * {
     width: 150px;
   }
 
-  canvas {
-    width: 100%;
+  thead th {
+    font-size: 0.8rem;
   }
 
-  tbody * {
-    padding-top: 2rem;
+  tbody {
+    font-size: 0.8rem;
   }
 }

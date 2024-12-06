@@ -231,6 +231,7 @@ div:has(>.submit) {
 }
 
 .modal form {
+  box-sizing: border-box;
   position: absolute;
   top: 200px;
   display: flex;

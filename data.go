@@ -10,7 +10,8 @@ import (
 
 type Section struct {
 	Heading string
-	IsLink  bool
+	// sidebarのテンプレ内でクエリパラメタとして使う
+	Tesu int
 	// liタグ内がただのテキストの場合、aタグが入る場合があるため、
 	// template.HTML型にしている。string型も設定できる（内部的には同じ）
 	// でも、逆にここをstring型にしてしまうと、template.HTML型が設定できなくなる。
@@ -45,35 +46,7 @@ func NewRootData() RootData {
 		Current: "RULE",
 		Err:     err,
 	}
-	// "/edit/" -> edit
-	meta, content, err = layoutData("edit")
-	rd["edit"] = Record{
-		Meta:    meta,
-		Content: content,
-		Current: "EDIT",
-		Sections: []Section{
-			{
-				Heading: "操作手順",
-				IsLink:  false,
-				List: []template.HTML{
-					"盤上に駒を配置してください",
-					"盤上の駒をクリックし、別のマスをクリックすれば動かせます",
-					"盤上の駒を消すには、駒をクリックし、ゴミ箱アイコンをクリックしてください。キーボードのdeleteキーでもOKです",
-					"完成したら、確定アイコンをクリックしてください",
-				},
-			},
-			{
-				Heading: "その他仕様",
-				IsLink:  false,
-				List: []template.HTML{
-					"既に駒が置いてあるマスをクリックした場合、上書きされます",
-					"解説の作成は、確定アイコンをクリック後、別ページにて行います",
-					"簡易的なチェックしか実装していません。確定前にチェックをお願いします",
-				},
-			},
-		},
-		Err: err,
-	}
+
 	return rd
 }
 

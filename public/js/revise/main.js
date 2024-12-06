@@ -49,7 +49,7 @@ function initHistory() {
     function loadHistory(id, seq) {
         // tableタグ内にaタグは入れられない仕様とのこと。
         // そのためtrタグクリックで画面遷移するようにする。
-        const url = `/undo?id=${id}&seq=${seq}`;
+        const url = `/undo/?id=${id}&seq=${seq}`;
         // 別のwindowで開きたい場合はwindow.openを使えばいける
         window.location.href = url;
     }

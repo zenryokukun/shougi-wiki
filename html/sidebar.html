@@ -1,4 +1,26 @@
 {{define "sidebar"}}
+<!-- 固定のリスト（作品一覧へのリンク） -->
+<div class="sb-section-wrapper">
+  <button class="sb-heading-wrapper-fixed">
+    <h3 class="sb-heading">一覧ページ</h3>
+    <i>
+      <svg xmlns="http://www.w3.org/2000/svg" class="sb-caret" data-caret="fixed-list"
+        viewBox="0 0 256 512"><!--!Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
+        <path
+          d="M246.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-9.2-9.2-22.9-11.9-34.9-6.9s-19.8 16.6-19.8 29.6l0 256c0 12.9 7.8 24.6 19.8 29.6s25.7 2.2 34.9-6.9l128-128z" />
+      </svg>
+    </i>
+  </button>
+  <nav class="sb-grid" data-index="fixed-list">
+    <div class="sb-list-wrapper">
+      <ul>
+        <li class="sb-list-item"><a href="/works-list">作品一覧</a></li>
+        <li class="sb-list-item"><a href="/deleted-works">削除一覧</a></li>
+      </ul>
+    </div>
+  </nav>
+</div>
+<!-- 可変のリスト -->
 {{range $i,$sec := .Sections}}
 <div class="sb-section-wrapper">
   {{if .Heading}}
@@ -13,23 +35,16 @@
     </i>
   </button>
   {{end}}
-  {{if .IsLink}}
   <nav class="sb-grid" data-index="{{$i}}">
-    <ul class="sb-list-wrapper">
-      {{range .List}}
-      <li class="sb-list-item">{{.}}</li>
-      {{end}}
-    </ul>
+    <div class="sb-list-wrapper">
+      <ul>
+        {{range .List}}
+        <li class="sb-list-item">{{.}}</li>
+        {{end}}
+      </ul>
+      <a class="sb-more-link" href="/works-list/?tesu={{.Tesu}}">もっと見る</a>
+    </div>
   </nav>
-  {{else}}
-  <div class="sb-grid" data-index="{{$i}}">
-    <ul class="sb-list-wrapper">
-      {{range .List}}
-      <li class="sb-list-item">{{.}}</li>
-      {{end}}
-    </ul>
-  </div>
-  {{end}}
 </div>
 {{end}}
 {{end}}

@@ -1,5 +1,24 @@
 <h1>新規作成画面</h1>
 <div class="container">
+  <div class="description-wrapper">
+    <div>
+      <h3>操作手順</h3>
+      <ul>
+        <li>盤上に駒を配置してください</li>
+        <li>盤上の駒をクリックし、別のマスをクリックすれば動かせます</li>
+        <li>盤上の駒を消すには、駒をクリックし、ゴミ箱アイコンをクリックしてください。キーボードのdeleteキーでもOKです</li>
+        <li>完成したら、確定アイコンをクリックしてください</li>
+      </ul>
+    </div>
+    <div>
+      <h3>その他仕様</h3>
+      <ul>
+        <li>既に駒が置いてあるマスをクリックした場合、上書きされます</li>
+        <li>解説の作成は、確定アイコンをクリック後、別ページにて行います</li>
+        <li>簡易的なチェックしか実装していません。確定前にチェックをお願いします</li>
+      </ul>
+    </div>
+  </div>
   <div class="canvas-wrapper">
     <div>
       <button class="trash">
@@ -34,7 +53,7 @@
   </div>
 </div>
 <img id="sprite" src="/shougi.png" alt="shougi-sprite" style="display:none;">
-<form action="/edit/description" method="post" class="hidden-form" target="_blank">
+<form action="/edit/description/" method="post" class="hidden-form" target="_blank">
   <input type="text" hidden name="main">
   <input type="text" hidden name="tegoma">
 </form>

@@ -1,0 +1,118 @@
+@import "./root.css";
+
+.thread-container {
+    min-height: 50vh;
+    padding: 2rem;
+}
+
+h1 {
+    font-size: 32px;
+    font-weight: 600;
+    font-family: Arial, Helvetica, sans-serif;
+    border-left: 5px solid var(--primary);
+    padding-left: 1rem;
+}
+
+form {
+    box-sizing: border-box;
+    border-top: solid 1px rgb(0 0 0 / 12%);
+    display: flex;
+    flex-direction: column;
+    row-gap: 1rem;
+    align-items: center;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+form p {
+    color: var(--text-medium);
+}
+
+form label {
+    display: block;
+    color: var(--text-medium);
+}
+
+#name,
+#comment,
+form button {
+    padding: 7px;
+    width: 500px;
+}
+
+#name,
+#comment {
+    font-size: 0.9rem;
+}
+
+#comment {
+    height: 270px;
+}
+
+.comments-wrapper {
+    width: 75%;
+    margin: auto;
+}
+
+.comment {
+    border-bottom: 1px solid #e7e7e7;
+    margin-top: 16px;
+    padding-bottom: 16px;
+}
+
+.comment-info {
+    color: var(--text-medium);
+}
+
+.info-id,
+.info-name {
+    font-weight: bold;
+}
+
+.comment-text {
+    margin-left: 5px;
+    color: var(--text-dark);
+    /* 
+    改行を生かすために必要。templateで余分な余白があるとそれも表示されるので、
+    {{- .SomeValue -}}のようにtemplate側で余白消すこと。 
+    */
+    white-space: pre-wrap;
+}
+
+.comment-info svg {
+    height: 20px;
+    margin-left: 10px;
+    fill: var(--text-medium);
+}
+
+@media screen and (max-width:850px) {
+    .comments-wrapper {
+        width: auto;
+    }
+}
+
+@media screen and (max-width:600px) {
+
+    .thread-container,
+    input,
+    textarea,
+    button {
+        box-sizing: border-box;
+    }
+
+    #name,
+    #comment {
+        width: 100%;
+    }
+
+    form button {
+        width: 250px;
+        height: 55px;
+    }
+
+    div:has(#name),
+    div:has(#comment) {
+        width: 100%;
+    }
+
+}

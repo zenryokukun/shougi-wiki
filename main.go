@@ -21,6 +21,8 @@ import (
 const PORT = 8000
 const DB = "./data.db"
 const POST_LIMIT = 5
+const LONG_TESU = 99999
+const BOARD_LIMIT = 50
 
 type (
 	// /api/insert-workのBody部分
@@ -160,7 +162,7 @@ func main() {
 
 	// html template
 	// tmpl, err := template.ParseFiles("./html/edit-description.html", "./html/preview.html")
-	tmpl, err := template.New("edit-description").Funcs(customFunc).ParseFiles("./html/edit-description.html", "./html/preview.html", "./html/deleted-works.html", "./html/works-list.html")
+	tmpl, err := template.New("edit-description").Funcs(customFunc).ParseFiles("./html/edit-description.html", "./html/preview.html", "./html/deleted-works.html", "./html/works-list.html", "./html/board.html", "./html/thread.html")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -228,19 +230,119 @@ func main() {
 	http.Handle("GET /browser-support/", checkRoute("browser-support", staticPageHandler))
 
 	http.Handle("/edit/", checkRoute("edit", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		data, ok := rootData["edit"]
-		if !ok || data.Err != nil {
+		rec := NewRootRecord("edit")
+		if rec.Err != nil {
+			fmt.Println(rec.Err)
 			http.NotFound(w, r)
-			return
 		}
-		err := rootTmpl.ExecuteTemplate(w, "layout.html", data)
+
+		rec.Sections = cache.SectionCache
+		rec.Current = "EDIT"
+
+		err := rootTmpl.ExecuteTemplate(w, "layout.html", rec)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println(rec.Err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	})))
 
+	// 掲示板ページ。スレッドの一覧を表示。スレッド自体は/threadエンドポイントなので留意。
+	http.Handle("GET /board/", checkRoute("board", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		threads, err := getThreads(db, BOARD_LIMIT)
+
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		buf := &bytes.Buffer{}
+
+		err = tmpl.ExecuteTemplate(buf, "board.html", threads)
+
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		rec := Record{
+			Meta: template.HTML(`
+			<meta name="description" content="">
+			<link rel="stylesheet" href="/css/board.css">
+			<script src="/js/board/main.js" type="module"></script>
+			<title>掲示板</title>
+			`),
+			Content:  template.HTML(buf.String()),
+			Current:  "BOARD",
+			Sections: cache.SectionCache,
+		}
+
+		err = rootTmpl.ExecuteTemplate(w, "layout.html", rec)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+	})))
+
+	// threadページ、/api/insert-commentで使う共通処理
+	loadThread := func(id int, title string, w http.ResponseWriter) {
+		// @todo get comments data
+		comments, err := getComments(db, int(id))
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		data := struct {
+			ThreadId int
+			Title    string
+			Comments []CommentRecord
+		}{
+			id, title, comments,
+		}
+		buf := &bytes.Buffer{}
+		err = tmpl.ExecuteTemplate(buf, "thread.html", data)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		meta := fmt.Sprintf(`
+			<meta name="description" content="スレッドにコメントを書き込む画面です。他人の誹謗中傷や、トピックの関係の話題は禁止です。">
+			<link rel="stylesheet" href="/css/thread.css">
+			<script src="/js/thread/main.js" type="module"></script>
+			<title>【スレッド】%v</title>
+		`, title)
+		rec := Record{
+			Meta:     template.HTML(meta),
+			Content:  template.HTML(buf.String()),
+			Current:  "BOARD",
+			Sections: cache.SectionCache,
+		}
+		rootTmpl.ExecuteTemplate(w, "layout.html", rec)
+	}
+
+	// threadページ
+	http.HandleFunc("GET /thread/", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		idStr := query.Get("id")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		title := query.Get("title")
+		loadThread(int(id), title, w)
+	})
+
 	// 新規作成画面
-	http.HandleFunc("/edit/description", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/edit/description/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
@@ -262,7 +364,7 @@ func main() {
 		}
 	})
 
-	// 修正画面
+	// 修正画面。edit/descriptionのテンプレートを利用
 	http.HandleFunc("/revise/", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		idStr := query.Get("id")
@@ -313,7 +415,7 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("POST /preview", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("POST /preview/", func(w http.ResponseWriter, r *http.Request) {
 		data := r.FormValue("data")
 		author := r.FormValue("author")
 		exp := r.FormValue("explanation")
@@ -662,7 +764,7 @@ func main() {
 	})
 
 	// undoモードでプレビュー画面を表示する
-	http.HandleFunc("GET /undo", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /undo/", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		idStr := query.Get("id")
 		seqStr := query.Get("seq")
@@ -989,9 +1091,57 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("POST /api/create-thread", func(w http.ResponseWriter, r *http.Request) {
+		name := r.FormValue("name")
+		title := r.FormValue("title")
+		// maxIdはThreadsの最大ID（挿入されたレコードのIDとなる）
+		maxId, err := insertThread(db, name, title)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		url := fmt.Sprintf("/thread?id=%v", maxId)
+
+		http.Redirect(w, r, url, http.StatusSeeOther)
+	})
+
+	// /threadページでコメントを投稿
+	http.HandleFunc("POST /api/insert-comment", func(w http.ResponseWriter, r *http.Request) {
+		author := r.FormValue("name")
+		comment := r.FormValue("comment")
+
+		threadIdStr := r.FormValue("thread-id")
+		threadId, err := strconv.ParseInt(threadIdStr, 10, 64)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		replyStr := r.FormValue("reply-to")
+		reply, err := strconv.ParseInt(replyStr, 10, 64)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		title := r.FormValue("title")
+
+		err = insertComment(db, int(threadId), int(reply), author, comment)
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		loadThread(int(threadId), title, w)
+		// w.Write([]byte(fmt.Sprintf("<p>%v</p><p>%v</p>", author, comment)))
+	})
+
 	// localhostをつけないと、起動時にfw許可のメッセージが出る
 	// つけると、スマホ等別デバイスからのアクセスができなくなる
-	// http.ListenAndServe("localhost:8000", nil)
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe("localhost:8000", nil)
+	// http.ListenAndServe(":8000", nil)
 
 }

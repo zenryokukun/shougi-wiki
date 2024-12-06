@@ -132,7 +132,20 @@ article h3 {
     scrollbar-color: #aaa #e4e4e0;
 }
 
-.sb-heading-wrapper {
+.sb-section-wrapper {
+    margin-top: 1rem;
+}
+
+.sb-section-wrapper:first-of-type {
+    margin-top: 2rem;
+}
+
+.sb-section-wrapper:last-of-type {
+    margin-bottom: 2rem;
+}
+
+.sb-heading-wrapper,
+.sb-heading-wrapper-fixed {
     display: block;
     visibility: hidden;
     margin: 0;
@@ -140,7 +153,8 @@ article h3 {
     background-color: inherit;
 }
 
-.sb-heading-wrapper i {
+.sb-heading-wrapper i,
+.sb-heading-wrapper-fixed i {
     display: none;
 }
 
@@ -152,14 +166,23 @@ article h3 {
     margin-top: 1rem;
 }
 
-.sb-list-wrapper {
-    padding-inline-start: 30px;
+.sb-list-wrapper ul {
+    padding-inline-start: 40px;
     padding-right: 10px;
 }
 
 .sb-list-item {
     padding: 7px 0 7px 0;
     color: var(--text-medium);
+}
+
+.sb-more-link {
+    display: block;
+    width: 80%;
+    text-align: right;
+    text-decoration-style: dotted;
+    color: var(--text-medium);
+    font-size: 0.9rem;
 }
 
 
@@ -322,18 +345,13 @@ article h3 {
     .sb-section-wrapper {
         width: 50%;
         margin: auto;
-        margin-top: 1rem;
+        /* margin-top: 1rem; */
     }
 
-    .sb-section-wrapper:first-of-type {
-        margin-top: 2rem;
-    }
 
-    .sb-section-wrapper:last-of-type {
-        margin-bottom: 2rem;
-    }
 
-    .sb-heading-wrapper {
+    .sb-heading-wrapper,
+    .sb-heading-wrapper-fixed {
         visibility: visible;
         display: flex;
         justify-content: space-between;
@@ -345,7 +363,8 @@ article h3 {
         font-size: 20px;
     }
 
-    .sb-heading-wrapper i {
+    .sb-heading-wrapper i,
+    .sb-heading-wrapper-fixed i {
         display: inline-block;
         width: 12px;
         height: 24px;
@@ -364,8 +383,8 @@ article h3 {
     .sb-list-wrapper {
         overflow: hidden;
         /* これが無いと0frの時にmargin分高さが出てしまう */
-        margin-block-start: 0;
-        margin-block-end: 0;
+        /* margin-block-start: 0;
+        margin-block-end: 0; */
     }
 
     .sb-list-wrapper li {

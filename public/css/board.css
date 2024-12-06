@@ -1,0 +1,133 @@
+@import "./root.css";
+
+.board-container {
+    padding: 2rem;
+    width: 80%;
+}
+
+.board-container h1 {
+    font-size: 32px;
+    font-weight: 600;
+    font-family: Arial, Helvetica, sans-serif;
+    border-left: 5px solid var(--primary);
+    padding-left: 1rem;
+}
+
+.threads-wrapper {
+    border-top: 1px solid rgb(0 0 0 / 12%);
+}
+
+.thread {
+    margin-top: 1rem;
+}
+
+.thread:first-of-type {
+    margin-top: 2rem;
+}
+
+.thread:last-of-type {
+    margin-bottom: 2rem;
+}
+
+.thread span {
+    display: inline-block;
+    margin-left: 1rem;
+    color: var(--text-medium);
+    font-size: 0.9rem;
+}
+
+#show-modal {
+    display: block;
+    margin: 2rem auto 2rem auto;
+}
+
+.modal {
+    width: 100vw;
+    /*vhだと何故かwidthが狭まるとフルで高さ取らなくなるので、、、*/
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    display: flex;
+    justify-content: center;
+    z-index: 2;
+}
+
+.off {
+    display: none;
+}
+
+.modal form {
+    box-sizing: border-box;
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    padding: 25px;
+    row-gap: 1rem;
+    border-radius: 10px;
+    top: 200px;
+    background-color: white;
+}
+
+.modal form label {
+    color: var(--text-medium);
+    display: block;
+}
+
+.modal form input,
+.modal form textarea {
+    padding: 7px;
+    width: 500px;
+}
+
+.modal form textarea {
+    height: 50px;
+    resize: none;
+}
+
+
+.modal button {
+    height: 50px;
+    width: 150px;
+    align-self: center;
+}
+
+.modal svg {
+    position: absolute;
+    height: 75px;
+    top: 100px;
+    fill: white;
+}
+
+
+@media screen and (max-width:600px) {
+    .board-container {
+        box-sizing: border-box;
+        width: 100%;
+    }
+
+    .modal form {
+        width: 80%;
+    }
+
+    .modal form input,
+    .modal form textarea {
+        width: 90%;
+        font-size: 0.9rem;
+    }
+
+    .modal form textarea {
+        height: 90px;
+    }
+
+    #show-modal {
+        height: 55px;
+    }
+}
+
+@media screen and (min-width:601px) {
+    .modal svg:hover {
+        fill: var(--text-light);
+    }
+}

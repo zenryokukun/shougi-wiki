@@ -14,7 +14,8 @@ const LONG = 99999
 
 // *sql.DBや*sql.TxでもQueryRowが使えるように、、、
 type Transer interface {
-	QueryRow(query string, args ...any) *sql.Row
+	QueryRow(string, ...any) *sql.Row
+	Exec(string, ...any) (sql.Result, error)
 }
 
 // dbから直接抜いたデータ。Nullを含むカラムがエラーになるので、、、
@@ -216,6 +217,30 @@ func (tmp WorkListTmpl) Max() int {
 	return max
 }
 
+// Threadsテーブルのレコードの型
+type ThreadRecord struct {
+	Id                  int
+	Title               string
+	Author              string
+	CreatedDateUnix     int
+	LastCommentDateUnix int
+	// 日付変換後（カラムにはない）
+	CreatedDateStr     string
+	LastCommentDateStr string
+}
+
+// Commentsテーブルのレコードの型
+type CommentRecord struct {
+	ThreadId    int
+	Seq         int
+	Commenter   string
+	Comment     string
+	ReplyTo     int
+	CommentDate int
+	// 日付変換後（カラムにはない）
+	CommentDateStr string
+}
+
 // 削除されたWorkのサマリ情報
 type DeletedWork struct {
 	Id      int
@@ -274,10 +299,12 @@ func (c WorksMap) section() []Section {
 		sec := Section{}
 		if key == LONG {
 			sec.Heading = "長手数集"
+			sec.Tesu = LONG_TESU
 		} else {
 			sec.Heading = fmt.Sprintf("%v手詰集", key)
+			sec.Tesu = key
 		}
-		sec.IsLink = true
+
 		wk := c[key]
 		for _, v := range wk {
 			link := fmt.Sprintf(`<a href="/works?id=%v">%v</a>`, v.Id, v.Title)
@@ -1055,7 +1082,8 @@ func worksMaxId(db Transer) int {
 	return m
 }
 
-// コメントを投稿する
+// 作品ページのコメントを投稿する。
+// 掲示板のコメントではないので注意
 func insertPost(db *sql.DB, name, comment, commentType string, id int) error {
 	tx, err := db.Begin()
 	if err != nil {
@@ -1103,6 +1131,14 @@ func postMaxSeq(db Transer, id int) int {
 	r := db.QueryRow(`SELECT COALESCE(MAX(SEQ),0) FROM POSTS WHERE ID=?`, id)
 	r.Scan(&m)
 	return m
+}
+
+// COMMENTテーブルからidに対応した最大のSEQカラムを取得
+func commentMaxSeq(db Transer, id int) (int, error) {
+	var m int
+	r := db.QueryRow(`SELECT COALESCE(MAX(SEQ),0) FROM COMMENTS WHERE THREAD_ID=?`, id)
+	err := r.Scan(&m)
+	return m, err
 }
 
 // HISTORYテーブルからIDに対応した最大のSEQカラムを取得
@@ -1224,4 +1260,169 @@ func isRestoredWork(db Transer, id int) (bool, error) {
 	}
 	// nullの場合
 	return false, err
+}
+
+// Threadテーブルに新規レコードを挿入し、最大ID（挿入されたレコードのID）を返す
+func insertThread(db *sql.DB, name, title string) (int, error) {
+	var maxId int
+	tx, err := db.Begin()
+	if err != nil {
+		return maxId, err
+	}
+	// tx.Commitが成功している場合、このRollbackはNOPとなる
+	// good practiceらしいぞ。
+	defer tx.Rollback()
+
+	now := currentDateUnix()
+
+	_, err = tx.Exec(`
+		INSERT INTO THREADS
+		(
+			TITLE,AUTHOR,CREATED_DATE
+		)
+		VALUES (
+			?,?,?
+		);
+	`, title, name, now)
+
+	if err != nil {
+		return maxId, err
+	}
+
+	maxId, err = getMaxThreadId(tx)
+
+	if err != nil {
+		return maxId, err
+	}
+
+	err = tx.Commit()
+
+	return maxId, err
+}
+
+func updateThreadCommentDate(db Transer, id int, dt int64) error {
+	_, err := db.Exec(`
+		UPDATE THREADS SET LAST_COMMENT_DATE=? WHERE ID=?
+	`, dt, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func getMaxThreadId(tx Transer) (int, error) {
+	row := tx.QueryRow(`SELECT MAX(ID) FROM THREADS`)
+	var id int
+	err := row.Scan(&id)
+	return id, err
+}
+
+func getThreads(db *sql.DB, limit int) ([]ThreadRecord, error) {
+	var recs []ThreadRecord
+	query := fmt.Sprintf(`
+		SELECT ID,TITLE,AUTHOR,CREATED_DATE,LAST_COMMENT_DATE
+		FROM THREADS
+		ORDER BY LAST_COMMENT_DATE DESC
+		LIMIT %v
+	`, limit)
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return recs, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var r ThreadRecord
+		rows.Scan(
+			&r.Id, &r.Title, &r.Author,
+			&r.CreatedDateUnix, &r.LastCommentDateUnix,
+		)
+		r.CreatedDateStr = unixToStr(int64(r.CreatedDateUnix))
+		if r.LastCommentDateUnix == 0 {
+			// db上はnullだけどThreadRecord型としてはintで定義しているので、nullのとき0になる。その場合はハイフンを設定
+			r.LastCommentDateStr = "-"
+		} else {
+			r.LastCommentDateStr = unixToStr(int64(r.LastCommentDateUnix))
+		}
+		recs = append(recs, r)
+	}
+
+	return recs, nil
+}
+
+// 掲示板のスレッドへのコメントを総んっゆう
+func insertComment(db *sql.DB, id, reply int, author, comment string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback()
+
+	maxSeq, err := commentMaxSeq(tx, id)
+
+	if err != nil {
+		return err
+	}
+
+	nextSeq := maxSeq + 1
+	now := currentDateUnix()
+
+	_, err = tx.Exec(`
+	  INSERT INTO COMMENTS (
+		THREAD_ID,
+		SEQ,
+		COMMENTER,
+		COMMENT,
+		REPLY_TO,
+		COMMENT_DATE
+	  )
+	  VALUES (
+		?,?,?,
+		?,?,?
+	  )
+	`, id, nextSeq, author, comment, reply, now)
+
+	if err != nil {
+		return err
+	}
+
+	// Threadsテーブルの最終投稿日も更新
+	err = updateThreadCommentDate(tx, id, now)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+
+	return err
+}
+
+func getComments(db *sql.DB, threadId int) ([]CommentRecord, error) {
+	var comments []CommentRecord
+	rows, err := db.Query(`
+		SELECT 
+		  THREAD_ID,SEQ,COMMENTER,COMMENT,REPLY_TO,COMMENT_DATE
+		FROM COMMENTS
+		WHERE THREAD_ID=?
+		LIMIT 300
+	`, threadId)
+
+	if err != nil {
+		return comments, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var c CommentRecord
+		rows.Scan(&c.ThreadId, &c.Seq, &c.Commenter, &c.Comment, &c.ReplyTo, &c.CommentDate)
+		// 日付をフォーマットして設定
+		c.CommentDateStr = unixToStr(int64(c.CommentDate))
+		comments = append(comments, c)
+	}
+
+	return comments, nil
 }

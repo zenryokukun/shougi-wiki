@@ -34,10 +34,23 @@ window.addEventListener("load", e => {
     const ham = document.querySelector(".hamburger");
     ham.addEventListener("click", hamClick);
 
+    /**
+     * サイドバーのメニューのアコーディオンを展開するイベント（モバイルのみ）
+     * サイドバーの作品一覧は固定のため、別のクラスを設定してある。ここでは取得されない点に注意
+     */
     const sbMenu = document.querySelectorAll(".sb-heading-wrapper");
 
     const sbMenuArray = Array.from(sbMenu);
     for (let i = 0; i < sbMenuArray.length; i++) {
         sbMenuArray[i].addEventListener("click", e => sbMenuClick(i))
     }
+
+    /**
+     * サイドバーの作品一覧（固定）のアコーディオンを展開するイベント
+     */
+    const sbFixedMenu = document.querySelector(".sb-heading-wrapper-fixed");
+    sbFixedMenu.addEventListener("click", () => {
+        // data-index,data-caretに設定されているっ固定値:fixed-list
+        sbMenuClick("fixed-list");
+    });
 });

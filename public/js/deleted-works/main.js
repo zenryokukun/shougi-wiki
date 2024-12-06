@@ -12,27 +12,15 @@ function addClickEvent() {
             info.classList.toggle("hide");
             svg.classList.toggle("light-icon");
         });
+
+        // 文字数が多いとモーダルがiアイコンに覆いかぶさってしまう
+        // モーダルをクリックしたら閉じるようにする
+        info.addEventListener("click", () => {
+            info.classList.add("hide");
+            svg.classList.remove("light-icon");
+        });
     }
-    // const nodes = document.querySelectorAll(".deleted-item");
-    // for (const node of nodes) {
-    //     const hiddenNode = node.querySelector(".full-info");
-    //     const tokens = hiddenNode.classList;
-    //     node.addEventListener("touchstart", () => {
-    //         if (tokens.contains("hide")) {
-    //             // タップされたdeleted-item直下のfull-infoは表示
-    //             tokens.remove("hide");
-    //             // 他のfull-infoは全て非表示にする
-    //             const hiddenNodes = document.querySelectorAll(".full-info");
-    //             for (const hn of hiddenNodes) {
-    //                 if (hiddenNode === hn) continue;
-    //                 hn.classList.add("hide");
-    //             }
-    //         } else {
-    //             // .hideクラスが含まれない（表示状態）の場合、非表示にする
-    //             tokens.add("hide");
-    //         }
-    //     });
-    // }
+
 }
 
 function main() {

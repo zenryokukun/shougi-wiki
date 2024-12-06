@@ -1,0 +1,45 @@
+<!-- スレッド内の投稿を表示するページ -->
+<div class="thread-container">
+  <h1>{{.Title}}</h1>
+  {{if eq (len .Comments) 0}}
+  <!-- 投稿数０の場合 -->
+  <p>まだ投稿はありません。投稿をお願いします</p>
+  {{else}}
+  <!-- 投稿がある場合 -->
+  <div class="comments-wrapper">
+    {{range .Comments}}
+    <div class="comment">
+      <div class="comment-info">
+        <span class="info-id">{{.Seq}}</span>
+        <span class="info-name">{{.Commenter}}</span>
+        <span class="info-date">{{.CommentDateStr}}</span>
+        <a href="#comment" class="reply-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <path
+              d="M205 34.8c11.5 5.1 19 16.6 19 29.2l0 64 112 0c97.2 0 176 78.8 176 176c0 113.3-81.5 163.9-100.2 174.1c-2.5 1.4-5.3 1.9-8.1 1.9c-10.9 0-19.7-8.9-19.7-19.7c0-7.5 4.3-14.4 9.8-19.5c9.4-8.8 22.2-26.4 22.2-56.7c0-53-43-96-96-96l-96 0 0 64c0 12.6-7.4 24.1-19 29.2s-25 3-34.4-5.4l-160-144C3.9 225.7 0 217.1 0 208s3.9-17.7 10.6-23.8l160-144c9.4-8.5 22.9-10.6 34.4-5.4z" />
+          </svg>
+        </a>
+      </div>
+      <div class="comment-text">
+        {{- .Comment -}}
+      </div>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+  <form action="/api/insert-comment" method="post">
+    <p>スレッドと関係のない投稿はご遠慮ください。また、他人の誹謗中傷は固く禁止します。</p>
+    <div>
+      <label for="name">名前</label>
+      <input type="text" name="name" id="name" maxlength="30" placeholder="名前（30文字以内）" required>
+    </div>
+    <div>
+      <label for="comment">投稿内容</label>
+      <textarea name="comment" id="comment" maxlength="400" placeholder="投稿内容（400文字以内）" required></textarea>
+    </div>
+    <input type="text" hidden name="thread-id" value="{{.ThreadId}}">
+    <input type="text" hidden name="reply-to" value="0">
+    <input type="text" hidden name="title" value="{{.Title}}">
+    <button type="submit">投稿する</button>
+  </form>
+</div>
