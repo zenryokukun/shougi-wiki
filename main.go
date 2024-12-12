@@ -249,8 +249,21 @@ func main() {
 
 	// 掲示板ページ。スレッドの一覧を表示。スレッド自体は/threadエンドポイントなので留意。
 	http.Handle("GET /board/", checkRoute("board", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		lastDateStr := query.Get("last-date")
+		var lastDate int64
+		if len(lastDateStr) == 0 {
+			lastDate = 0
+		} else {
+			lastDate, err = strconv.ParseInt(lastDateStr, 10, 64)
+			if err != nil {
+				fmt.Println(err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
 
-		threads, err := getThreads(db, BOARD_LIMIT)
+		threads, err := getThreads(db, BOARD_LIMIT, lastDate)
 
 		if err != nil {
 			fmt.Println(err)
@@ -258,9 +271,30 @@ func main() {
 			return
 		}
 
-		buf := &bytes.Buffer{}
+		// 取得したデータの中で、もっとも若い投稿日で更新（次の表示用）
+		if len(threads) == 0 {
+			lastDate = 0
+		} else {
+			// 投稿がないスレは投稿日は0なので、nullでない最後の値をセット。だる、、、
+			i := len(threads) - 1
+			for i >= 0 {
+				t := threads[i]
+				if t.LastCommentDateUnix != 0 {
+					lastDate = int64(t.LastCommentDateUnix)
+					break
+				}
+				i--
+			}
+		}
 
-		err = tmpl.ExecuteTemplate(buf, "board.html", threads)
+		buf := &bytes.Buffer{}
+		boardData := struct {
+			Threads  []ThreadRecord
+			LastDate int64
+		}{
+			Threads: threads, LastDate: lastDate,
+		}
+		err = tmpl.ExecuteTemplate(buf, "board.html", boardData)
 
 		if err != nil {
 			fmt.Println(err)
@@ -601,6 +635,7 @@ func main() {
 		w.Write([]byte(fmt.Sprint(cnt)))
 	})
 
+	// worksのコメントを投稿する時に呼び出されるAPI
 	http.HandleFunc("POST /api/insert-post", func(w http.ResponseWriter, r *http.Request) {
 		name := r.FormValue("name")
 		comment := r.FormValue("comment")
@@ -612,13 +647,24 @@ func main() {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		err = insertPost(db, name, comment, commentType, int(id))
+		post, err := insertPost(db, name, comment, commentType, int(id))
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(200)
+
+		postsData := map[string][]PostRecord{
+			"Posts": {post},
+		}
+
+		err = worksTmpl.ExecuteTemplate(w, "posts", postsData)
+
+		if err != nil {
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
 	})
 
 	http.Handle("GET /works/", checkRoute("works", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -709,18 +755,25 @@ func main() {
 		}
 
 		// DBの最大SEQを取得し、超えているようならクライアントに伝える
-		maxSeq := postMaxSeq(db, int(id))
-		if int(lastSeq) >= maxSeq {
-			// 204 No-Contentを返す
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
+		// maxSeq := postMaxSeq(db, int(id))
+		// if int(lastSeq) >= maxSeq {
+		// 	// 204 No-Contentを返す
+		// 	w.WriteHeader(http.StatusNoContent)
+		// 	return
+		// }
 
 		recs, err := getPosts(db, int(id), int(lastSeq), POST_LIMIT)
 
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// recsの長さがゼロなら、全て取得したことをクライアントに伝える
+		if int(len(recs)) == 0 {
+			// 204 No-Contentを返す
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 

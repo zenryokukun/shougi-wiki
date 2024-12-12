@@ -32,7 +32,6 @@
 
         // 最後のパスをもとに判定する
         const lastPath = paths[paths.length - 1];
-        console.log(lastPath);
 
         // インデックス登録をしないページは何もしない
         if (lastPath === "revise" || lastPath === "restore"
@@ -121,7 +120,7 @@
     const paths = url.pathname.split("/").filter(v => v.length > 0);
 
     const ld = genLdJson(paths)
-    console.log(ld);
+
     // pathsが何らかの理由で取得できない場合はld+jsonを生成しないでリターン
     if (ld === null) {
         script = null;

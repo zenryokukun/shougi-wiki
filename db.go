@@ -267,10 +267,10 @@ func (wc *WorksCache) Update(db *sql.DB) {
 }
 
 func (c WorksMap) update(db *sql.DB) {
-	// @Todo 全量取得しているんどえ、直近N個に絞るような仕組みを導入
 	rows, err := db.Query(`
 		SELECT ID,TESU,TITLE FROM WORKS WHERE DEL_FLG IS NULL
-		ORDER BY TESU ASC,ID ASC;
+		ORDER BY TESU ASC,PUBLISH_DATE DESC
+		LIMIT 50;
 	`)
 	if err != nil {
 		fmt.Println(err)
@@ -1084,10 +1084,11 @@ func worksMaxId(db Transer) int {
 
 // 作品ページのコメントを投稿する。
 // 掲示板のコメントではないので注意
-func insertPost(db *sql.DB, name, comment, commentType string, id int) error {
+func insertPost(db *sql.DB, name, comment, commentType string, id int) (PostRecord, error) {
+	var rec PostRecord
 	tx, err := db.Begin()
 	if err != nil {
-		return err
+		return rec, err
 	}
 	maxSeq := postMaxSeq(tx, id)
 	nextSeq := maxSeq + 1
@@ -1115,14 +1116,24 @@ func insertPost(db *sql.DB, name, comment, commentType string, id int) error {
 		if err != nil {
 			fmt.Println(err)
 		}
-		return err
+		return rec, err
 	}
+
 	err = tx.Commit()
+
+	rec = PostRecord{
+		Id: id, Seq: nextSeq,
+		Name: name, Comment: comment,
+		Type:        commentType,
+		PostDate:    int(pdate),
+		PostDateStr: unixToStr(pdate),
+	}
+
 	if err != nil {
 		fmt.Println(err)
-		return err
+		return rec, err
 	}
-	return nil
+	return rec, nil
 }
 
 // POSTSテーブルからidに対応した最大のSEQカラムを取得
@@ -1149,16 +1160,30 @@ func historyMaxSeq(db Transer, id int) (int, error) {
 	return m, err
 }
 
-// 投稿内容を取得
+// 投稿内容を取得。降順で表示する。offset=0は、初回表示
 func getPosts(db *sql.DB, id, offset, limit int) ([]PostRecord, error) {
 	recs := []PostRecord{}
-	query := fmt.Sprintf(`
+	var query string
+	var rows *sql.Rows
+	var err error
+	if offset == 0 {
+		query = fmt.Sprintf(`
 		SELECT * FROM POSTS 
-		WHERE ID=? AND SEQ>? 
+		WHERE ID=?
+		ORDER BY SEQ DESC
 		LIMIT %v
 		`, limit)
-
-	rows, err := db.Query(query, id, offset)
+		rows, err = db.Query(query, id)
+	} else {
+		query = fmt.Sprintf(`
+		SELECT * FROM POSTS 
+		WHERE ID=? 
+		AND SEQ<?
+		ORDER BY SEQ DESC
+		LIMIT %v
+		`, limit)
+		rows, err = db.Query(query, id, offset)
+	}
 
 	if err != nil {
 		return recs, err
@@ -1263,6 +1288,7 @@ func isRestoredWork(db Transer, id int) (bool, error) {
 }
 
 // Threadテーブルに新規レコードを挿入し、最大ID（挿入されたレコードのID）を返す
+// LAST_COMMENT_DATE（最終コメント投稿日）は、レコード作成日と同じ値をセット
 func insertThread(db *sql.DB, name, title string) (int, error) {
 	var maxId int
 	tx, err := db.Begin()
@@ -1278,12 +1304,12 @@ func insertThread(db *sql.DB, name, title string) (int, error) {
 	_, err = tx.Exec(`
 		INSERT INTO THREADS
 		(
-			TITLE,AUTHOR,CREATED_DATE
+			TITLE,AUTHOR,CREATED_DATE,LAST_COMMENT_DATE
 		)
 		VALUES (
-			?,?,?
+			?,?,?,?
 		);
-	`, title, name, now)
+	`, title, name, now, now)
 
 	if err != nil {
 		return maxId, err
@@ -1317,16 +1343,36 @@ func getMaxThreadId(tx Transer) (int, error) {
 	return id, err
 }
 
-func getThreads(db *sql.DB, limit int) ([]ThreadRecord, error) {
+// 掲示板ページで表示するスレッド一覧を取得する。
+// 表示順はコメント投稿日の降順、かつLIMITで取得数を区切っている。
+// そのため、次の一覧を取得する歳、「現在表示されている日付より前の日付」に絞る必要あり
+// OFFSET句を使う手もあるが、今回は使わない
+func getThreads(db *sql.DB, limit int, lastDate int64) ([]ThreadRecord, error) {
 	var recs []ThreadRecord
-	query := fmt.Sprintf(`
-		SELECT ID,TITLE,AUTHOR,CREATED_DATE,LAST_COMMENT_DATE
-		FROM THREADS
-		ORDER BY LAST_COMMENT_DATE DESC
-		LIMIT %v
-	`, limit)
+	var query string
+	var rows *sql.Rows
+	var err error
+	if lastDate == 0 {
+		// 初期表示のとき。投稿日で絞る必要がないのでWHERE句なし
+		query = fmt.Sprintf(`
+		  SELECT ID,TITLE,AUTHOR,CREATED_DATE,LAST_COMMENT_DATE
+		  FROM THREADS
+		  ORDER BY LAST_COMMENT_DATE DESC
+		  LIMIT %v
+		`, limit)
+		rows, err = db.Query(query)
+	} else {
+		// 次の一覧を取得するとき。lastDateより前のデータに絞って取得する必要あり
+		query = fmt.Sprintf(`
+		  SELECT ID,TITLE,AUTHOR,CREATED_DATE,LAST_COMMENT_DATE
+		  FROM THREADS
+		  WHERE LAST_COMMENT_DATE < ?
+		  ORDER BY LAST_COMMENT_DATE DESC
+		  LIMIT %v
+	    `, limit)
+		rows, err = db.Query(query, lastDate)
+	}
 
-	rows, err := db.Query(query)
 	if err != nil {
 		return recs, err
 	}

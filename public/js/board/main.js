@@ -20,10 +20,10 @@ function main() {
         modal.classList.add("off");
     });
 
-    const next = document.querySelector("#next");
-    next.addEventListener("click", () => {
-        alert("test")
-    })
+    // const next = document.querySelector("#next");
+    // next.addEventListener("click", () => {
+    //     alert("test")
+    // })
 
 }
 

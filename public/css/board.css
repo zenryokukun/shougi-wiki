@@ -39,6 +39,8 @@
 #show-modal {
     display: block;
     margin: 2rem auto 2rem auto;
+    height: 50px;
+    width: 150px;
 }
 
 .modal {
@@ -100,6 +102,26 @@
     fill: white;
 }
 
+#next {
+    text-decoration-style: dotted;
+    color: var(--text-medium);
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.no-more-threads {
+    text-decoration: none !important;
+    font-weight: normal;
+    color: var(--text-light) !important;
+}
+
+#alert-no-threads {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-left: 1rem;
+    padding: 1rem;
+    font-family: 'Courier New', Courier, monospace;
+}
 
 @media screen and (max-width:600px) {
     .board-container {

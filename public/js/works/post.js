@@ -14,6 +14,23 @@ export default function initPostEval() {
     }
 }
 
+// 「次のpost」を取得した歳、新たに取得したpostにイベントをつける関数
+export function initNewPostEval(lastSeq) {
+    const pid = getParamId();
+    const nodes = document.querySelectorAll(`[data-seq]`);
+    for (const node of nodes) {
+        const seq = node.dataset.seq;
+        const seqInt = parseInt(seq);
+        const lastSeqInt = parseInt(lastSeq);
+        // lastSeqまではイベントがアタッチされているので何もしない
+        if (seqInt >= lastSeqInt) { continue; }
+        const good = node.querySelector(`[data-type="good"]`)
+        const bad = node.querySelector(`[data-type="bad"]`)
+        good.addEventListener("click", () => click(pid, good, bad));
+        bad.addEventListener("click", () => click(pid, bad, good));
+    }
+}
+
 function click(pid, node, otherNode) {
     const svg = node.querySelector("svg");
     const otherSvg = otherNode.querySelector("svg");

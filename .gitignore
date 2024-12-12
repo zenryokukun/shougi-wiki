@@ -2,4 +2,4 @@
 /public/bk_*
 /public/thumb
 /sql/alter_*.sql
-/sql/test.sql
+/sql/test*.sql

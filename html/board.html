@@ -2,7 +2,7 @@
   <h1>掲示板</h1>
   <p>投稿に関するルールや、本サイトに関する要望等を議論してください。サイトの趣旨と無関係のスレッドや、他人や他作品の誹謗中傷は禁止です。</p>
   <ul class="threads-wrapper">
-    {{range .}}
+    {{range .Threads}}
     <li class="thread">
       <a href="/thread?id={{.Id}}&title={{.Title}}">{{.Title}}</a>
       <span>【作成日】{{.CreatedDateStr}}</span>
@@ -10,7 +10,11 @@
     </li>
     {{end}}
   </ul>
-  <a id="next" href="/">テスト</a>
+  {{if eq (len .Threads) 0}}
+  <p id="alert-no-threads">スレッドがありません</p>
+  {{end}}
+  <a id="next" {{- if gt (len .Threads) 0 -}}href="/board/?last-date={{.LastDate}}" {{end}} {{- if eq (len .Threads) 0
+    -}}class="no-more-threads" {{end}}>次の一覧</a>
   <button id="show-modal">スレッドを立てる</button>
 </div>
 <div class="modal off">

@@ -3,7 +3,7 @@ import GameHistory from "../shougi/game-history.js";
 import initIcon from "../shougi/icon.js";
 import initToggle from "../answer.js";
 import initEval from "./eval.js";
-import initPostEval from "./post.js";
+import initPostEval, { initNewPostEval } from "./post.js";
 import getParamId from "./param.js";
 import { showModal } from "./modal.js";
 
@@ -98,6 +98,7 @@ function initGetNextPost() {
         const lastNode = document.querySelector(".post:last-of-type");
         const nodeWithSeq = lastNode.querySelector("[data-seq]");
         const seq = nodeWithSeq.dataset.seq;
+
         const params = new URLSearchParams({ id, seq });
         fetch("/api/get-next-posts?" + params.toString())
             .then(res => {
@@ -112,7 +113,10 @@ function initGetNextPost() {
                 return res.text();
             })
             .then(txt => {
-                parent.innerHTML += txt;
+                // innerHTMLだと、配下の要素につけたイベントがリセットされる。insertAdjacentHTMLだと消えない
+                parent.insertAdjacentHTML("beforeend", txt);
+                // 追加されたpostにイベント等を設定
+                initNewPostEval(seq);
             })
             .catch(err => alert(err))
     });
@@ -152,17 +156,26 @@ function initSubmit() {
             body: fd,
         }).then(res => {
             if (!res.ok) {
-                return { msg: "投稿失敗", isLock: false };
+                throw new Error("投稿失敗");
             }
-            return { msg: "投稿成功", isLock: true };
-        }).then(data => {
+            return res.text();
+        }).then(html => {
+            // 投稿ステータスを表示し、ボタンを押せなくする（連投禁止）
             const node = document.querySelector(".submit-status");
-            node.textContent = data.msg;
-            if (data.isLock) {
-                const btn = document.querySelector(".submit");
-                btn.disabled = true;
-            }
-        })
+            node.textContent = "投稿成功";
+            const btn = document.querySelector(".submit");
+            btn.disabled = true;
+            // 投稿したコメントを表示
+            const parent = document.querySelector(".posts");
+            if (parent === null) return;
+            // innerHTMLだとイベント消えるのでこっち使う
+            parent.insertAdjacentHTML("afterbegin", html);
+            // parent.innerHTML = html + parent.innerHTML;
+
+        }).catch(err => {
+            const node = document.querySelector(".submit-status");
+            node.textContent = err;
+        });
     })
 }
 
