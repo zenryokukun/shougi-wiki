@@ -221,6 +221,10 @@ div:has(>.submit) {
   color: inherit;
 }
 
+.hidden {
+  display: none;
+}
+
 .modal {
   width: 100vw;
   /*vhだと何故かwidthが狭まるとフルで高さ取らなくなるので、、、*/

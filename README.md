@@ -2,12 +2,16 @@
 
 ## TODOs
 
+- エラー制御
+- /api/insert-commentは/threadにリダイレクトする方式にすることを検討。URLが/api/insert-commentとして表示されるので。
+- NewRootData（キャッシュ）とNewRootRecord（オンデマンドで開く）のどっち使うかはっきりさせる
+- defaultLayoutHandler関数の用途がよく分からないので精査
+　（/edit/や/rule/でも使えそうな気がするものの、、、ナビゲーションにないページの場合のみに使用？）
 - indexを貼らないページのメタタグ修正
 - innerHTMLにdompurify導入
 - 追加予定ページ（優先順位）：管理人について、
 - bread-crumb（画面上部のナビゲーション）の追加検討
 - 名前入力のautocomplete
-- エラー制御
 - main.goのNewRootData -> 都度ファイルを開いて返す形にすることも検討。レスポンスが課題になるようであればキャッシュで良い気が、、
 - esbuildとかのバンドラ導入（リリース後でも）
 

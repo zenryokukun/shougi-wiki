@@ -152,14 +152,12 @@
       </div>
     </form>
   </div>
-  {{if .Posts}}
   <div class="posts-wrapper">
     <div class="posts">
       {{template "posts" .}}
     </div>
-    <button class="posts-fetch">次のコメントを取得</button>
+    <button {{if eq (len .Posts) 0}} class="posts-fetch hidden" {{else}} class="posts-fetch" {{end}}>次のコメントを取得</button>
   </div>
-  {{end}}
   {{end}}
   <img id="sprite" src="/shougi.png" alt="" style="display:none;">
 </div>

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -65,6 +66,9 @@ type (
 func (b *WorkBody) steps() (int, error) {
 	m := [][]int32{}
 	err := json.Unmarshal([]byte(b.Main), &m)
+	if err != nil {
+		err = stack("&WorkBody.steps", err)
+	}
 	return len(m), err
 }
 
@@ -80,6 +84,8 @@ func checkRoute(target string, next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		err := errors.New("page not found at `checkRoute` func")
+		logErr(r, err)
 		http.NotFound(w, r)
 	})
 }
@@ -127,13 +133,17 @@ func defalutLayoutHandler(tmpl *template.Template, cache *WorksCache) http.Handl
 
 		rec := NewRootRecord(route)
 		if rec.Err != nil {
+			err := stack("defaultLayoutHandler", rec.Err)
+			logErr(r, err)
 			http.NotFound(w, r)
 			return
 		}
 		rec.Sections = cache.SectionCache
 		err := tmpl.ExecuteTemplate(w, "layout.html", rec)
+
 		if err != nil {
-			fmt.Println(err)
+			err = stack("defaultLayoutHandler", err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -143,13 +153,17 @@ func defalutLayoutHandler(tmpl *template.Template, cache *WorksCache) http.Handl
 func main() {
 	// db接続
 	db, err := sql.Open("sqlite3", DB)
-	_ = db
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// サイドバーのリンクのキャッシュを初期化
 	cache := &WorksCache{}
-	cache.Update(db)
+	err = cache.Update(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// templateに埋め込むデータとか
 	rootData := NewRootData()
 
@@ -196,17 +210,22 @@ func main() {
 			// ルートページを返す
 			// 現在のページをハイライトするために指定。
 			// HOME -> ルートページ、EDIT -> 編集ページ、BOARD -> 掲示板
-			// data := struct{ Current string }{"HOME"}
 			data, ok := rootData["home"]
 			if !ok || data.Err != nil {
+				logErr(r, err)
 				http.NotFound(w, r)
 				return
 			}
+
 			data.Sections = cache.SectionCache
+
 			err := rootTmpl.ExecuteTemplate(w, "layout.html", data)
+
 			if err != nil {
-				fmt.Println(err)
+				logErr(r, err)
+				w.WriteHeader(http.StatusInternalServerError)
 			}
+			// ↑でrootTmpl.ExecuteTemplate(w,~,~)でwに書き込んでいるので、ここでリターンする必要がある。そうしないとfs.ServeHTTP(w,r)がワーニングになる（superfluous response.WriteHeader call）
 			return
 		}
 		// static folder（publicフォルダ）のデータを返す。CSSやJS等。
@@ -216,13 +235,15 @@ func main() {
 	http.Handle("/rule/", checkRoute("rule", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, ok := rootData["rule"]
 		if !ok || data.Err != nil {
+			logErr(r, err)
 			http.NotFound(w, r)
 			return
 		}
 		data.Sections = cache.SectionCache
 		err := rootTmpl.ExecuteTemplate(w, "layout.html", data)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	})))
 
@@ -232,18 +253,19 @@ func main() {
 	http.Handle("/edit/", checkRoute("edit", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rec := NewRootRecord("edit")
 		if rec.Err != nil {
-			fmt.Println(rec.Err)
+			logErr(r, err)
 			http.NotFound(w, r)
+			return
 		}
 
 		rec.Sections = cache.SectionCache
 		rec.Current = "EDIT"
 
 		err := rootTmpl.ExecuteTemplate(w, "layout.html", rec)
+
 		if err != nil {
-			fmt.Println(rec.Err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
-			return
 		}
 	})))
 
@@ -257,7 +279,7 @@ func main() {
 		} else {
 			lastDate, err = strconv.ParseInt(lastDateStr, 10, 64)
 			if err != nil {
-				fmt.Println(err)
+				logErr(r, err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -266,7 +288,7 @@ func main() {
 		threads, err := getThreads(db, BOARD_LIMIT, lastDate)
 
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -294,10 +316,11 @@ func main() {
 		}{
 			Threads: threads, LastDate: lastDate,
 		}
+
 		err = tmpl.ExecuteTemplate(buf, "board.html", boardData)
 
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -315,20 +338,21 @@ func main() {
 		}
 
 		err = rootTmpl.ExecuteTemplate(w, "layout.html", rec)
+
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 
 	})))
 
-	// threadページ、/api/insert-commentで使う共通処理
-	loadThread := func(id int, title string, w http.ResponseWriter) {
+	// threadページで利用。/api/insert-commentでも使っていたが外した。。
+	loadThread := func(id int, title string, w http.ResponseWriter) error {
 		// @todo get comments data
 		comments, err := getComments(db, int(id))
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			err = stack("loadThread", err)
+			return err
 		}
 
 		data := struct {
@@ -341,9 +365,8 @@ func main() {
 		buf := &bytes.Buffer{}
 		err = tmpl.ExecuteTemplate(buf, "thread.html", data)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			err = stack("loadThread", err)
+			return err
 		}
 
 		meta := fmt.Sprintf(`
@@ -358,7 +381,13 @@ func main() {
 			Current:  "BOARD",
 			Sections: cache.SectionCache,
 		}
-		rootTmpl.ExecuteTemplate(w, "layout.html", rec)
+
+		err = rootTmpl.ExecuteTemplate(w, "layout.html", rec)
+
+		if err != nil {
+			err = stack("loadThread", err)
+		}
+		return err
 	}
 
 	// threadページ
@@ -367,12 +396,16 @@ func main() {
 		idStr := query.Get("id")
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		title := query.Get("title")
-		loadThread(int(id), title, w)
+		err = loadThread(int(id), title, w)
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	})
 
 	// 新規作成画面
@@ -394,7 +427,8 @@ func main() {
 		// w.Write([]byte(`<h1>TEST</h1>`))
 		err = tmpl.ExecuteTemplate(w, "edit-description.html", Data)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	})
 
@@ -404,13 +438,15 @@ func main() {
 		idStr := query.Get("id")
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		rec, err := getWork(db, int(id))
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		edits, err := getHistorySummary(db, int(id))
@@ -443,7 +479,7 @@ func main() {
 
 		err = tmpl.ExecuteTemplate(w, "edit-description.html", data)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -482,8 +518,8 @@ func main() {
 		if isReviseMode {
 			publishUnixInt, err := strconv.ParseInt(publishUnix, 10, 64)
 			if err != nil {
-				fmt.Println(err)
-				w.WriteHeader(http.StatusInternalServerError)
+				logErr(r, err)
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 			dt.PublishDate = unixToStr(publishUnixInt)
@@ -504,7 +540,9 @@ func main() {
 
 		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		// preview.htmlテンプレートには３つのモード(revise,new,undo,restore)がある。
@@ -531,7 +569,8 @@ func main() {
 
 		err = tmpl.ExecuteTemplate(w, "preview.html", wdata)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	})
 
@@ -542,7 +581,7 @@ func main() {
 
 		maxId, err := insertWork(db, body)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -560,7 +599,7 @@ func main() {
 		pic := dataArr[1]
 		img, err := base64.StdEncoding.DecodeString(pic)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			fmt.Println("画像をbase64からデコードできませんでした。リクエスト内の画像は以下のとおり:")
 			fmt.Println(body.Pic)
 			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。ホーム画面に戻ります。"))
@@ -570,7 +609,7 @@ func main() {
 		fpath := thumbPath(maxId)
 		f, err := os.Create(fpath)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			fmt.Println("ファイルの保存先が取得できませんでした。保存先パス：")
 			fmt.Println(fpath)
 			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。ホーム画面に戻ります。"))
@@ -580,7 +619,7 @@ func main() {
 
 		_, err = f.Write(img)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			fmt.Println("ファイルの書き込みが出来ませんでした")
 			w.Write([]byte("サムネの登録ができませんでしたが、作品登録は問題なく出来ました。ご協力ありがとうございました。ホーム画面に戻ります。"))
 			return
@@ -589,7 +628,10 @@ func main() {
 		w.Write([]byte("登録成功しました。反映まで少し時間がかかる場合があります。作品投稿ありがとうございましたm(__)m。ホーム画面に戻ります。"))
 
 		// リンクのcacheを更新
-		cache.Update(db)
+		err = cache.Update(db)
+		if err != nil {
+			logErr(r, err)
+		}
 	})
 
 	http.HandleFunc("/api/update-work", func(w http.ResponseWriter, r *http.Request) {
@@ -597,8 +639,8 @@ func main() {
 		dec := json.NewDecoder(r.Body)
 		err := dec.Decode(body)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -606,30 +648,35 @@ func main() {
 		//  - backup and update work db
 		err = updateWork(db, body)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Write([]byte("更新成功しました。反映まで少し時間がかかる場合があります。編集ありがとうございましたm(__)m。ホーム画面に戻ります。"))
-		// @Todo
-		//  - update cache
-		cache.Update(db)
+
+		err = cache.Update(db)
+		if err != nil {
+			logErr(r, err)
+		}
 	})
 
+	// 作品評価のアイコン（グッドやバッド等）を押したときの処理
+	// DBを更新し、更新後の値を返す
 	http.HandleFunc("POST /api/update-eval", func(w http.ResponseWriter, r *http.Request) {
 		data := &UpdateEvalBody{}
 		dec := json.NewDecoder(r.Body)
 		err := dec.Decode(data)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		cnt, err := updateWorkEval(db, data)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		w.Header().Add("Content-Type", "text/plain")
 		w.Write([]byte(fmt.Sprint(cnt)))
@@ -643,13 +690,14 @@ func main() {
 		commentType := r.FormValue("type")
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
 		post, err := insertPost(db, name, comment, commentType, int(id))
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -659,9 +707,8 @@ func main() {
 		}
 
 		err = worksTmpl.ExecuteTemplate(w, "posts", postsData)
-
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -674,30 +721,33 @@ func main() {
 		id, err := strconv.ParseInt(paramid, 10, 64)
 
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		// dbからデータ取得
 		wr, err := getWork(db, int(id))
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			http.NotFound(w, r)
 			return
 		}
 
 		// dbから投稿（post）を取得
-		// エラーが出ても取得しないだでなのでエラーにしない
-		posts, _ := getPosts(db, int(id), 0, POST_LIMIT)
+		posts, err := getPosts(db, int(id), 0, POST_LIMIT)
 		wr.Posts = posts
+		// エラーが出ても取得しないだけなので、エラー表示のみとし、returnはしない。
+		if err != nil {
+			logErr(r, err)
+		}
 
 		// works.htmlテンプレートに埋め込み
 		wBuf := &bytes.Buffer{}
 		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wr)
 
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			http.NotFound(w, r)
 			return
 		}
@@ -714,58 +764,57 @@ func main() {
 		}
 		err = rootTmpl.ExecuteTemplate(w, "layout.html", wdata)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 		}
 	})))
 
+	// 作品のコメント投稿内の評価アイコン（グッドやバッド等）を押した時の処理
+	// 評価を更新し、更新後の値を返す
 	http.HandleFunc("POST /api/update-post-eval", func(w http.ResponseWriter, r *http.Request) {
 		body := &UpdatePostEvalBody{}
 		dec := json.NewDecoder(r.Body)
 		err := dec.Decode(body)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		cnt, err := updatePostEval(db, body)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Header().Add("Content-Type", "text/plain")
-		w.Write([]byte(fmt.Sprint(cnt)))
+		_, err = w.Write([]byte(fmt.Sprint(cnt)))
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	})
 
+	// 作品のコメント投稿の次の一覧を取得する処理
 	http.HandleFunc("GET /api/get-next-posts", func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		idStr := query.Get("id")
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		lastSeqStr := query.Get("seq")
 		lastSeq, err := strconv.ParseInt(lastSeqStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-
-		// DBの最大SEQを取得し、超えているようならクライアントに伝える
-		// maxSeq := postMaxSeq(db, int(id))
-		// if int(lastSeq) >= maxSeq {
-		// 	// 204 No-Contentを返す
-		// 	w.WriteHeader(http.StatusNoContent)
-		// 	return
-		// }
 
 		recs, err := getPosts(db, int(id), int(lastSeq), POST_LIMIT)
 
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -785,7 +834,7 @@ func main() {
 		err = worksTmpl.ExecuteTemplate(w, "posts", postsData)
 
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	})
@@ -802,18 +851,23 @@ func main() {
 		value, valueErr := strconv.ParseInt(valueStr, 10, 64)
 
 		if idErr != nil || tesuErr != nil || valueErr != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		nextId, err := getNextWork(db, int(id), int(tesu), int(value))
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.Write([]byte(fmt.Sprint(nextId)))
+
+		_, err = w.Write([]byte(fmt.Sprint(nextId)))
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	})
 
 	// undoモードでプレビュー画面を表示する
@@ -824,22 +878,22 @@ func main() {
 
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		seq, err := strconv.ParseInt(seqStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		hist, err := getHistory(db, int(id), int(seq))
 
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -875,7 +929,7 @@ func main() {
 		wBuf := &bytes.Buffer{}
 		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -890,7 +944,7 @@ func main() {
 
 		err = tmpl.ExecuteTemplate(w, "preview.html", wdata)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 		}
 	})
 
@@ -900,20 +954,29 @@ func main() {
 		dec := json.NewDecoder(r.Body)
 		err := dec.Decode(bd)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		err = undoWorkFromHistory(db, bd.Id, bd.Seq)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		w.Write([]byte("更新成功"))
-		cache.Update(db)
+		_, err = w.Write([]byte("更新成功"))
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		err = cache.Update(db)
+		if err != nil {
+			logErr(r, err)
+		}
 	})
 
 	// restoreモードでpreview.htmlを表示する
@@ -923,7 +986,7 @@ func main() {
 		idStr := query.Get("id")
 		id64, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -931,7 +994,7 @@ func main() {
 
 		wr, err := getWork(db, id)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -965,7 +1028,7 @@ func main() {
 		wBuf := &bytes.Buffer{}
 		err = worksTmpl.ExecuteTemplate(wBuf, "works.html", wc)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -980,7 +1043,7 @@ func main() {
 
 		err = tmpl.ExecuteTemplate(w, "preview.html", wdata)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 		}
 	})
 
@@ -991,26 +1054,37 @@ func main() {
 		dec := json.NewDecoder(r.Body)
 		err := dec.Decode(&bd)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusBadRequest)
 		}
 
 		err = restoreWork(db, bd.Id)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		w.Write([]byte("更新成功しました。反映まで少し時間がかかる場合があります。ホーム画面に戻ります。"))
-		cache.Update(db)
+		_, err = w.Write([]byte("更新成功しました。反映まで少し時間がかかる場合があります。ホーム画面に戻ります。"))
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		err = cache.Update(db)
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	})
 
 	http.HandleFunc("GET /deleted-works/", func(w http.ResponseWriter, r *http.Request) {
 		// deleteされた作品の一覧
 		wk, err := getDeletedWorks(db)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -1018,7 +1092,7 @@ func main() {
 		buf := &bytes.Buffer{}
 		err = tmpl.ExecuteTemplate(buf, "deleted-works.html", wk)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -1036,7 +1110,7 @@ func main() {
 
 		err = rootTmpl.ExecuteTemplate(w, "layout.html", wdata)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -1052,14 +1126,31 @@ func main() {
 		}{}
 		err := dec.Decode(&data)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		// @Todo dbの削除処理
-		deleteWork(db, data.Id, data.Editor, data.Reason)
-		w.Write([]byte("削除成功しました。"))
-		cache.Update(db)
+		err = deleteWork(db, data.Id, data.Editor, data.Reason)
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		_, err = w.Write([]byte("削除成功しました。"))
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		err = cache.Update(db)
+		if err != nil {
+			logErr(r, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	})
 
 	// 作品一覧ページ
@@ -1077,7 +1168,7 @@ func main() {
 		} else {
 			tesu, err = strconv.ParseInt(tesuStr, 10, 64)
 			if err != nil {
-				fmt.Println(err)
+				logErr(r, err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -1088,7 +1179,7 @@ func main() {
 		} else {
 			start, err = strconv.ParseInt(startStr, 10, 64)
 			if err != nil {
-				fmt.Println(err)
+				logErr(r, err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -1096,7 +1187,10 @@ func main() {
 
 		wlist, err := getWorksList(db, int(start), int(tesu))
 		if err != nil || len(wlist) == 0 {
-			fmt.Println(err)
+			if len(wlist) == 0 {
+				err = errors.New("wlistの長さがゼロ")
+			}
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -1120,7 +1214,7 @@ func main() {
 		}
 		err = tmpl.ExecuteTemplate(wbuf, "works-list.html", wkTmpl)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -1138,7 +1232,7 @@ func main() {
 
 		err = rootTmpl.ExecuteTemplate(w, "layout.html", data)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -1150,7 +1244,9 @@ func main() {
 		// maxIdはThreadsの最大ID（挿入されたレコードのIDとなる）
 		maxId, err := insertThread(db, name, title)
 		if err != nil {
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		url := fmt.Sprintf("/thread?id=%v", maxId)
@@ -1166,16 +1262,16 @@ func main() {
 		threadIdStr := r.FormValue("thread-id")
 		threadId, err := strconv.ParseInt(threadIdStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		replyStr := r.FormValue("reply-to")
 		reply, err := strconv.ParseInt(replyStr, 10, 64)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logErr(r, err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -1183,18 +1279,22 @@ func main() {
 
 		err = insertComment(db, int(threadId), int(reply), author, comment)
 		if err != nil {
-			fmt.Println(err)
+			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		loadThread(int(threadId), title, w)
-		// w.Write([]byte(fmt.Sprintf("<p>%v</p><p>%v</p>", author, comment)))
+		url := fmt.Sprintf("/thread/?id=%v&title=%v", threadId, title)
+
+		// クライアントに最新投稿を表示するためリダイレクト
+		http.Redirect(w, r, url, http.StatusSeeOther)
 	})
 
 	// localhostをつけないと、起動時にfw許可のメッセージが出る
 	// つけると、スマホ等別デバイスからのアクセスができなくなる
-	http.ListenAndServe("localhost:8000", nil)
+	err = http.ListenAndServe("localhost:8000", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// http.ListenAndServe(":8000", nil)
-
 }

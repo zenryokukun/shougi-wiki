@@ -62,10 +62,12 @@ func layoutData(route string) (template.HTML, template.HTML, error) {
 	metaPath := filepath.Join(fol, "meta.html")
 	content, err := readFile(contentPath)
 	if err != nil {
+		err = stack("layoutData", err)
 		return "", "", err
 	}
 	meta, err := readFile(metaPath)
 	if err != nil {
+		err = stack("layoutData", err)
 		return "", "", err
 	}
 	return template.HTML(meta), template.HTML(content), err
@@ -76,10 +78,15 @@ func layoutData(route string) (template.HTML, template.HTML, error) {
 // content.html、とmeta.htmlが/html/*route*に格納されている必要あり
 func NewRootRecord(route string) Record {
 	meta, content, err := layoutData(route)
+	if err != nil {
+		err = stack("NewRootRecord", err)
+	}
 	// .Currentは呼び出し下で対応すること
-	return Record{
+	rec := Record{
 		Meta:    meta,
 		Content: content,
 		Err:     err,
 	}
+
+	return rec
 }

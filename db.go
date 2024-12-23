@@ -259,30 +259,41 @@ type WorksCache struct {
 	SectionCache []Section
 }
 
-func (wc *WorksCache) Update(db *sql.DB) {
+func (wc *WorksCache) Update(db *sql.DB) error {
 	// 初期化しないとエラーになる。更新の都度初期化する。そうしないとUpdateで二重に設定される。
 	wc.data = WorksMap{}
-	wc.data.update(db)
+	err := wc.data.update(db)
+	if err != nil {
+		// updateに失敗したらreturn。SectionCacheも更新しない。
+		err = stack("&WorksCache.Update", err)
+		return err
+	}
 	wc.SectionCache = wc.data.section()
+	return err
 }
 
-func (c WorksMap) update(db *sql.DB) {
+func (c WorksMap) update(db *sql.DB) error {
 	rows, err := db.Query(`
 		SELECT ID,TESU,TITLE FROM WORKS WHERE DEL_FLG IS NULL
 		ORDER BY TESU ASC,PUBLISH_DATE DESC
 		LIMIT 50;
 	`)
 	if err != nil {
-		fmt.Println(err)
-		return
+		err = stack("WorksMap.update", err)
+		return err
 	}
+
 	defer rows.Close()
 
 	for rows.Next() {
 		var id int
 		var tesu int
 		var title string
-		rows.Scan(&id, &tesu, &title)
+		err = rows.Scan(&id, &tesu, &title)
+		if err != nil {
+			err = stack("WorksMap.update", err)
+			return err
+		}
 		info := WorkLink{id, title}
 		if tesu > 11 {
 			c[LONG] = append(c[LONG], info)
@@ -290,6 +301,7 @@ func (c WorksMap) update(db *sql.DB) {
 			c[tesu] = append(c[tesu], info)
 		}
 	}
+	return err
 }
 
 func (c WorksMap) section() []Section {
@@ -329,6 +341,7 @@ func insertWork(db *sql.DB, bd *WorkBody) (int, error) {
 	var maxId int
 	l, err := bd.steps()
 	if err != nil {
+		err = stack("insertWork", err)
 		return maxId, err
 	}
 	// 配列の長さ-1が手数になる（1手詰みなら配列は2つあるよね。）
@@ -343,8 +356,11 @@ func insertWork(db *sql.DB, bd *WorkBody) (int, error) {
 
 	tx, err := db.Begin()
 	if err != nil {
+		err = stack("insertWork", err)
 		return maxId, err
 	}
+
+	defer tx.Rollback()
 
 	_, err = tx.Exec(`
 		INSERT INTO WORKS
@@ -381,18 +397,23 @@ func insertWork(db *sql.DB, bd *WorkBody) (int, error) {
 	maxId = worksMaxId(tx)
 
 	if err != nil {
-		tx.Rollback()
+		err = stack("insertWork", err)
 		return maxId, err
 	}
 
-	tx.Commit()
-	return maxId, nil
+	err = tx.Commit()
+	if err != nil {
+		err = stack("insertWork", err)
+	}
+
+	return maxId, err
 }
 
 // 投稿速品（work）を更新する。編集画面からの登録時に利用
 func updateWork(db *sql.DB, bd *WorkBody) error {
 	tx, err := db.Begin()
 	if err != nil {
+		err = stack("updateWork", err)
 		return err
 	}
 
@@ -401,6 +422,7 @@ func updateWork(db *sql.DB, bd *WorkBody) error {
 	// バックアップから復元されたWorkかをチェック
 	isRestored, err := isRestoredWork(tx, bd.Id)
 	if err != nil {
+		err = stack("updateWork", err)
 		return err
 	}
 
@@ -411,6 +433,7 @@ func updateWork(db *sql.DB, bd *WorkBody) error {
 	if !isRestored {
 		err = backupWork(tx, bd.Id, now)
 		if err != nil {
+			err = stack("updateWork", err)
 			return err
 		}
 	}
@@ -418,11 +441,13 @@ func updateWork(db *sql.DB, bd *WorkBody) error {
 	// workテーブルを更新する
 	err = updateWorkFromEdit(tx, bd, now)
 	if err != nil {
+		err = stack("updateWork", err)
 		return err
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		err = stack("updateWork", err)
 		return err
 	}
 
@@ -436,6 +461,7 @@ func backupWork(tx *sql.Tx, id int, now int64) error {
 	// 最大連番を取得
 	maxSeq, err := historyMaxSeq(tx, id)
 	if err != nil {
+		err = stack("backupWork", err)
 		return err
 	}
 
@@ -468,6 +494,7 @@ func backupWork(tx *sql.Tx, id int, now int64) error {
 
 	_, err = tx.Exec(query, id)
 	if err != nil {
+		err = stack("backupWork", err)
 		return err
 	}
 	return nil
@@ -481,6 +508,7 @@ func updateWorkFromEdit(tx *sql.Tx, bd *WorkBody, now int64) error {
 	// 手数を計算
 	l, err := bd.steps()
 	if err != nil {
+		err = stack("updateWorkFromEdit", err)
 		return err
 	}
 	tesu := l - 1
@@ -514,6 +542,7 @@ func updateWorkFromEdit(tx *sql.Tx, bd *WorkBody, now int64) error {
 	)
 
 	if err != nil {
+		err = stack("updateWorkFromEdit", err)
 		return err
 	}
 
@@ -545,7 +574,8 @@ func getHistory(db Transer, id, seq int) (HistoryRecord, error) {
 		&raw.Good, &raw.Bad, &raw.Demand,
 	)
 	if err != nil {
-		return rec, nil
+		err = stack("getHistory", err)
+		return rec, err
 	}
 	work := raw.parse()
 	rec = HistoryRecord{
@@ -553,18 +583,12 @@ func getHistory(db Transer, id, seq int) (HistoryRecord, error) {
 		BackupDate: backupDate,
 		WorkRecord: work,
 	}
-	return rec, nil
+	return rec, err
 }
 
 // historyテーブルのサマリーを取得。編集画面のリンク表示用
 func getHistorySummary(db *sql.DB, id int) ([]HistorySummary, error) {
 	var summary []HistorySummary
-	// rows, err := db.Query(`
-	// 	SELECT ID,SEQ,EDITOR,EDIT_DATE,COMMENT
-	// 	FROM HISTORY
-	// 	WHERE ID=?
-	// `, id)
-
 	// historyテーブルにはバックアップを取得した日付（BACKUP_DATE）と
 	// WORKテーブルにある編集した日付（EDIT_DATE）の両方ある。
 	// 同じ日付となることがほとんどだが、HISTORYから復元した場合、HISOTRYテーブルのEDIT_DATEは入らない
@@ -593,6 +617,7 @@ func getHistorySummary(db *sql.DB, id int) ([]HistorySummary, error) {
 	`, id)
 
 	if err != nil {
+		err = stack("getHistorySummary", err)
 		return summary, err
 	}
 
@@ -608,6 +633,7 @@ func getHistorySummary(db *sql.DB, id int) ([]HistorySummary, error) {
 
 		err = rows.Scan(&id, &seq, &editorCol, &editDateCol, &commentCol, &isRestoredCol)
 		if err != nil {
+			err = stack("getHistorySummary", err)
 			return summary, err
 		}
 
@@ -662,6 +688,7 @@ func getHistorySummary(db *sql.DB, id int) ([]HistorySummary, error) {
 func undoWorkFromHistory(db *sql.DB, id, seq int) error {
 	tx, err := db.Begin()
 	if err != nil {
+		err = stack("undoWorkFromHistory", err)
 		return err
 	}
 
@@ -675,12 +702,14 @@ func undoWorkFromHistory(db *sql.DB, id, seq int) error {
 	// 復元されたworkでなければ、バックアップを取る
 	isRestored, err := isRestoredWork(db, id)
 	if err != nil {
+		err = stack("undoWorkFromHistory", err)
 		return err
 	}
 
 	if !isRestored {
 		err = backupWork(tx, id, now)
 		if err != nil {
+			err = stack("undoWorkFromHistory", err)
 			return err
 		}
 	}
@@ -720,6 +749,7 @@ func undoWorkFromHistory(db *sql.DB, id, seq int) error {
 	`, seq, id, seq, id)
 
 	if err != nil {
+		err = stack("undoWorkFromHistory", err)
 		return err
 	}
 
@@ -729,6 +759,7 @@ func undoWorkFromHistory(db *sql.DB, id, seq int) error {
 	// historyのSEQを新たに採番
 	maxSeq, err := historyMaxSeq(tx, id)
 	if err != nil {
+		err = stack("undoWorkFromHistory", err)
 		return err
 	}
 	nSeq := maxSeq + 1
@@ -744,12 +775,14 @@ func undoWorkFromHistory(db *sql.DB, id, seq int) error {
 	`, id, nSeq, now, cmt)
 
 	if err != nil {
+		err = stack("undoWorkFromHistory", err)
 		return err
 	}
 
 	// 正常終了。commit
 	err = tx.Commit()
 	if err != nil {
+		err = stack("undoWorkFromHistory", err)
 		return err
 	}
 
@@ -765,13 +798,17 @@ func updateWorkEval(db *sql.DB, eb *UpdateEvalBody) (int, error) {
 
 	tx, err := db.Begin()
 	if err != nil {
+		err = stack("updateWorkEval", err)
 		return cnt, err
 	}
+
+	defer tx.Rollback()
+
 	query := fmt.Sprintf("SELECT %v FROM WORKS WHERE ID=?", key)
 	row := tx.QueryRow(query, id)
 	err = row.Scan(&cnt)
 	if err != nil {
-		tx.Rollback()
+		err = stack("updateWorkEval", err)
 		return cnt, err
 	}
 
@@ -780,11 +817,15 @@ func updateWorkEval(db *sql.DB, eb *UpdateEvalBody) (int, error) {
 	query = fmt.Sprintf("UPDATE WORKS SET %v=%v WHERE ID=?", key, cnt)
 	_, err = tx.Exec(query, id)
 	if err != nil {
-		tx.Rollback()
+		err = stack("updateWorkEval", err)
 		return cnt, err
 	}
-	tx.Commit()
-	return cnt, nil
+
+	err = tx.Commit()
+	if err != nil {
+		err = stack("updateWorkEval", err)
+	}
+	return cnt, err
 }
 
 // WORKテーブルからレコードを取得する
@@ -812,11 +853,10 @@ func getWork(db *sql.DB, id int) (WorkRecord, error) {
 	)
 
 	if err != nil {
-		fmt.Println(err)
-		msg := fmt.Sprintf("workテーブルからデータを取れませんでした。ID:%v", id)
-		err = errors.New(msg)
+		err = stack("getWork", err)
 		return WorkRecord{}, err
 	}
+
 	rec := raw.parse()
 	return rec, err
 }
@@ -842,10 +882,15 @@ func deleteWork(db *sql.DB, id int, editor, reason string) error {
 	`, 1, editor, reason, dt, id)
 
 	if err != nil {
+		err = stack("deleteWork", err)
 		return err
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		err = stack("deleteWork", err)
+	}
+
 	return err
 }
 
@@ -853,6 +898,7 @@ func deleteWork(db *sql.DB, id int, editor, reason string) error {
 func restoreWork(db *sql.DB, id int) error {
 	tx, err := db.Begin()
 	if err != nil {
+		err = stack("restoreWork", err)
 		return err
 	}
 
@@ -868,10 +914,14 @@ func restoreWork(db *sql.DB, id int) error {
 	`, id)
 
 	if err != nil {
+		err = stack("restoreWork", err)
 		return err
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		err = stack("restoreWork", err)
+	}
 
 	return err
 }
@@ -933,6 +983,7 @@ func getWorksList(db *sql.DB, lastId, tesu int) ([]WorkListTmpl, error) {
 
 	rows, err := db.Query(query, lastId, tesu)
 	if err != nil {
+		err = stack("getWorksList", err)
 		return tmpls, err
 	}
 
@@ -947,6 +998,7 @@ func getWorksList(db *sql.DB, lastId, tesu int) ([]WorkListTmpl, error) {
 		err := rows.Scan(&id, &tesu, &title, &kihu, &author, &pdate, &edate, &good, &bad)
 
 		if err != nil {
+			err = stack("getWorksList", err)
 			return tmpls, err
 		}
 
@@ -954,10 +1006,13 @@ func getWorksList(db *sql.DB, lastId, tesu int) ([]WorkListTmpl, error) {
 		var kArr []string
 		err = json.Unmarshal([]byte(kihu), &kArr)
 		if err != nil {
+			err = stack("getWorksList", err)
 			return tmpls, err
 		}
 		if len(kArr) <= 1 {
-			return tmpls, errors.New("length of kihu is less than 1")
+			err = errors.New("length of kihu is less than 1")
+			err = stack("getWorksList", err)
+			return tmpls, err
 		}
 		// 最初の要素は空白なので落とす
 		kArr = kArr[1:]
@@ -1033,6 +1088,7 @@ func getDeletedWorks(db *sql.DB) ([]DeletedWork, error) {
 		LIMIT 50
 	`)
 	if err != nil {
+		err = stack("getDeletedWorks", err)
 		return list, err
 	}
 
@@ -1043,6 +1099,7 @@ func getDeletedWorks(db *sql.DB) ([]DeletedWork, error) {
 		var title, reason, kihuJ string
 		err := rows.Scan(&id, &title, &kihuJ, &dateInt, &reason)
 		if err != nil {
+			err = stack("getDeletedWorks", err)
 			return list, err
 		}
 		// unix->文字列
@@ -1051,6 +1108,7 @@ func getDeletedWorks(db *sql.DB) ([]DeletedWork, error) {
 		var kihuArr []string
 		err = json.Unmarshal([]byte(kihuJ), &kihuArr)
 		if err != nil {
+			err = stack("getDeletedWorks", err)
 			return list, err
 		}
 		kihuArr = kihuArr[1:]
@@ -1090,9 +1148,17 @@ func insertPost(db *sql.DB, name, comment, commentType string, id int) (PostReco
 	if err != nil {
 		return rec, err
 	}
-	maxSeq := postMaxSeq(tx, id)
+
+	defer tx.Rollback()
+
+	maxSeq, err := postMaxSeq(tx, id)
+	if err != nil {
+		err = stack("insertPost", err)
+		return rec, err
+	}
+
 	nextSeq := maxSeq + 1
-	_ = nextSeq
+
 	pdate := time.Now().Unix()
 	_, err = tx.Exec(`
 		INSERT INTO POSTS (
@@ -1112,15 +1178,17 @@ func insertPost(db *sql.DB, name, comment, commentType string, id int) (PostReco
 		pdate,
 	)
 	if err != nil {
-		err = tx.Rollback()
-		if err != nil {
-			fmt.Println(err)
-		}
+		err = stack("insertPost", err)
 		return rec, err
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		err = stack("insertPost", err)
+		return rec, err
+	}
 
+	// 投稿内容をクライアントに表示するために必要
 	rec = PostRecord{
 		Id: id, Seq: nextSeq,
 		Name: name, Comment: comment,
@@ -1129,19 +1197,18 @@ func insertPost(db *sql.DB, name, comment, commentType string, id int) (PostReco
 		PostDateStr: unixToStr(pdate),
 	}
 
-	if err != nil {
-		fmt.Println(err)
-		return rec, err
-	}
 	return rec, nil
 }
 
 // POSTSテーブルからidに対応した最大のSEQカラムを取得
-func postMaxSeq(db Transer, id int) int {
+func postMaxSeq(db Transer, id int) (int, error) {
 	var m int
 	r := db.QueryRow(`SELECT COALESCE(MAX(SEQ),0) FROM POSTS WHERE ID=?`, id)
-	r.Scan(&m)
-	return m
+	err := r.Scan(&m)
+	if err != nil {
+		err = stack("postMaxSeq", err)
+	}
+	return m, err
 }
 
 // COMMENTテーブルからidに対応した最大のSEQカラムを取得
@@ -1149,6 +1216,9 @@ func commentMaxSeq(db Transer, id int) (int, error) {
 	var m int
 	r := db.QueryRow(`SELECT COALESCE(MAX(SEQ),0) FROM COMMENTS WHERE THREAD_ID=?`, id)
 	err := r.Scan(&m)
+	if err != nil {
+		err = stack("commentMaxSeq", err)
+	}
 	return m, err
 }
 
@@ -1157,6 +1227,9 @@ func historyMaxSeq(db Transer, id int) (int, error) {
 	var m int
 	r := db.QueryRow(`SELECT COALESCE(MAX(SEQ),0) FROM HISTORY WHERE ID=?`, id)
 	err := r.Scan(&m)
+	if err != nil {
+		err = stack("historyMaxSeq", err)
+	}
 	return m, err
 }
 
@@ -1186,6 +1259,7 @@ func getPosts(db *sql.DB, id, offset, limit int) ([]PostRecord, error) {
 	}
 
 	if err != nil {
+		err = stack("getPosts", err)
 		return recs, err
 	}
 
@@ -1193,15 +1267,19 @@ func getPosts(db *sql.DB, id, offset, limit int) ([]PostRecord, error) {
 
 	for rows.Next() {
 		r := PostRecord{}
-		rows.Scan(
+		err = rows.Scan(
 			&r.Id, &r.Seq, &r.Name, &r.Comment, &r.Type,
 			&r.PostDate, &r.Good, &r.Bad,
 		)
+		if err != nil {
+			err = stack("getPosts", err)
+			return recs, err
+		}
 		r.PostDateStr = unixToStr(int64(r.PostDate))
 		recs = append(recs, r)
 	}
 
-	return recs, nil
+	return recs, err
 }
 
 // post内の評価を更新
@@ -1266,6 +1344,9 @@ func getNextWork(db *sql.DB, id, tesu, val int) (int, error) {
 	var retId int
 	row := db.QueryRow(query, tesu, id)
 	err := row.Scan(&retId)
+	if err != nil {
+		err = stack("getNextWork", err)
+	}
 	return retId, err
 }
 
@@ -1274,6 +1355,11 @@ func isRestoredWork(db Transer, id int) (bool, error) {
 	var bkup sql.NullInt64
 	row := db.QueryRow(`SELECT BACKUP_SEQ FROM WORKS WHERE ID=?`, id)
 	err := row.Scan(&bkup)
+	if err != nil {
+		err = stack("isRestoredWork", err)
+		return false, err
+	}
+
 	if bkup.Valid {
 		if bkup.Int64 == 0 {
 			// backup_seqがnullでなくても、0ならfalseを返す。
@@ -1293,6 +1379,7 @@ func insertThread(db *sql.DB, name, title string) (int, error) {
 	var maxId int
 	tx, err := db.Begin()
 	if err != nil {
+		err = stack("insertThread", err)
 		return maxId, err
 	}
 	// tx.Commitが成功している場合、このRollbackはNOPとなる
@@ -1312,16 +1399,21 @@ func insertThread(db *sql.DB, name, title string) (int, error) {
 	`, title, name, now, now)
 
 	if err != nil {
+		err = stack("insertThread", err)
 		return maxId, err
 	}
 
 	maxId, err = getMaxThreadId(tx)
 
 	if err != nil {
+		err = stack("insertThread", err)
 		return maxId, err
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		err = stack("insertThread", err)
+	}
 
 	return maxId, err
 }
@@ -1330,7 +1422,9 @@ func updateThreadCommentDate(db Transer, id int, dt int64) error {
 	_, err := db.Exec(`
 		UPDATE THREADS SET LAST_COMMENT_DATE=? WHERE ID=?
 	`, dt, id)
+
 	if err != nil {
+		err = stack("updateThreadCommentDate", err)
 		return err
 	}
 	return nil
@@ -1374,6 +1468,7 @@ func getThreads(db *sql.DB, limit int, lastDate int64) ([]ThreadRecord, error) {
 	}
 
 	if err != nil {
+		err = stack("getThreads", err)
 		return recs, err
 	}
 
@@ -1381,10 +1476,17 @@ func getThreads(db *sql.DB, limit int, lastDate int64) ([]ThreadRecord, error) {
 
 	for rows.Next() {
 		var r ThreadRecord
-		rows.Scan(
+		err = rows.Scan(
 			&r.Id, &r.Title, &r.Author,
 			&r.CreatedDateUnix, &r.LastCommentDateUnix,
 		)
+
+		// scanがエラーの場合はreturn
+		if err != nil {
+			err = stack("getThreads", err)
+			return recs, err
+		}
+
 		r.CreatedDateStr = unixToStr(int64(r.CreatedDateUnix))
 		if r.LastCommentDateUnix == 0 {
 			// db上はnullだけどThreadRecord型としてはintで定義しているので、nullのとき0になる。その場合はハイフンを設定
@@ -1402,6 +1504,7 @@ func getThreads(db *sql.DB, limit int, lastDate int64) ([]ThreadRecord, error) {
 func insertComment(db *sql.DB, id, reply int, author, comment string) error {
 	tx, err := db.Begin()
 	if err != nil {
+		err = stack("insertComment", err)
 		return err
 	}
 
@@ -1410,6 +1513,7 @@ func insertComment(db *sql.DB, id, reply int, author, comment string) error {
 	maxSeq, err := commentMaxSeq(tx, id)
 
 	if err != nil {
+		err = stack("insertComment", err)
 		return err
 	}
 
@@ -1432,16 +1536,21 @@ func insertComment(db *sql.DB, id, reply int, author, comment string) error {
 	`, id, nextSeq, author, comment, reply, now)
 
 	if err != nil {
+		err = stack("insertComment", err)
 		return err
 	}
 
 	// Threadsテーブルの最終投稿日も更新
 	err = updateThreadCommentDate(tx, id, now)
 	if err != nil {
+		err = stack("insertComment", err)
 		return err
 	}
 
 	err = tx.Commit()
+	if err != nil {
+		err = stack("insertComment", err)
+	}
 
 	return err
 }
@@ -1457,6 +1566,7 @@ func getComments(db *sql.DB, threadId int) ([]CommentRecord, error) {
 	`, threadId)
 
 	if err != nil {
+		err = stack("getComments", err)
 		return comments, err
 	}
 
@@ -1464,7 +1574,12 @@ func getComments(db *sql.DB, threadId int) ([]CommentRecord, error) {
 
 	for rows.Next() {
 		var c CommentRecord
-		rows.Scan(&c.ThreadId, &c.Seq, &c.Commenter, &c.Comment, &c.ReplyTo, &c.CommentDate)
+		err = rows.Scan(&c.ThreadId, &c.Seq, &c.Commenter, &c.Comment, &c.ReplyTo, &c.CommentDate)
+		// scanがエラーだったらreturn
+		if err != nil {
+			err = stack("getComments", err)
+			return comments, err
+		}
 		// 日付をフォーマットして設定
 		c.CommentDateStr = unixToStr(int64(c.CommentDate))
 		comments = append(comments, c)

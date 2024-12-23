@@ -170,7 +170,11 @@ function initSubmit() {
             if (parent === null) return;
             // innerHTMLだとイベント消えるのでこっち使う
             parent.insertAdjacentHTML("afterbegin", html);
-            // parent.innerHTML = html + parent.innerHTML;
+
+            // コメントがない場合は「次のコメントを取得」のボタンが隠れているので、表示させる
+            const pfetch = document.querySelector(".posts-fetch")
+            if (pfetch === null) return;
+            pfetch.classList.remove("hidden");
 
         }).catch(err => {
             const node = document.querySelector(".submit-status");
