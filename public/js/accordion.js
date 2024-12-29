@@ -35,6 +35,18 @@ window.addEventListener("load", e => {
     ham.addEventListener("click", hamClick);
 
     /**
+     * モバイルのみ
+     * 「メニュー」ボタン押下でサブメニュー（サイドバーのコンテンツ）を展開する
+     */
+    const mMenu = document.querySelector(".mobile-menu")
+    mMenu.addEventListener("click", () => {
+        const grid = document.querySelector("#sb-grid-content-wrapper");
+        const caret = document.querySelector("[data-caret='mobile-menu-caret']");
+        toggleClass(grid, "accordion");
+        toggleClass(caret, "rotate");
+    });
+
+    /**
      * サイドバーのメニューのアコーディオンを展開するイベント（モバイルのみ）
      * サイドバーの作品一覧は固定のため、別のクラスを設定してある。ここでは取得されない点に注意
      */

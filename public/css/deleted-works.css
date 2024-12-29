@@ -146,33 +146,6 @@
     }
 }
 
-@media screen and (max-width:850px) {
-
-    /* root.cssをオーバーライド */
-    .main-wrapper {
-        order: 1;
-    }
-
-    /* root.cssをオーバーライド */
-    .sidebar-wrapper {
-        order: 2;
-    }
-}
-
-/* @media screen and (max-width:698px) {
-    .deleted-items-container {
-        justify-content: center;
-    }
-
-    .deleted-item {
-        width: 45%;
-    }
-
-    .deleted-item .full-info {
-        width: 45%;
-    }
-} */
-
 @media screen and (max-width:600px) {
 
     .deleted-items-container {

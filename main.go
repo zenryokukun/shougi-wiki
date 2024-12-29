@@ -1292,9 +1292,9 @@ func main() {
 
 	// localhostをつけないと、起動時にfw許可のメッセージが出る
 	// つけると、スマホ等別デバイスからのアクセスができなくなる
-	err = http.ListenAndServe("localhost:8000", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// http.ListenAndServe(":8000", nil)
+	// err = http.ListenAndServe("localhost:8000", nil)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	http.ListenAndServe(":8000", nil)
 }

@@ -1,0 +1,6 @@
+User-agent: Googlebot
+Disallow: /edit/description
+Disallow: /preview
+Disallow: /restore
+Disallow: /revise
+Disallow: /undo

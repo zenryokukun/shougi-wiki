@@ -300,16 +300,6 @@ div:has(>.submit) {
 
 @media screen and (max-width:600px) {
 
-  /* root.cssをオーバーライド */
-  .main-wrapper {
-    order: 1;
-  }
-
-  /* root.cssをオーバーライド */
-  .sidebar-wrapper {
-    order: 2;
-  }
-
   .works-content {
     width: 95%;
     padding: 1.5rem 0.5rem 2rem 0.5rem;

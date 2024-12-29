@@ -79,8 +79,11 @@ article h3 {
     color: var(--text-medium);
 }
 
-.nav-wrapper ul {
+.nav-wrapper {
     background-color: var(--light-bg);
+}
+
+.nav-wrapper ul {
     display: flex;
     justify-content: center;
     column-gap: 1.5rem;
@@ -121,6 +124,11 @@ article h3 {
 }
 
 /*************sidebar*****************/
+
+.mobile-menu {
+    display: none;
+}
+
 .sidebar-wrapper {
     width: var(--sidebar-width);
     max-height: 100vh;
@@ -336,6 +344,51 @@ article h3 {
     }
 
     .sidebar-wrapper {
+        /* このBPでサイドバーがアコーディオンになる。
+        スクロールバーが不要になるため初期値に。
+        これが無いとスクロールバー分？の変な余白ができる。
+        */
+        scrollbar-width: auto;
+        scrollbar-gutter: initial;
+    }
+
+    .mobile-menu {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        column-gap: 1rem;
+        border: none;
+        padding: 7px 7px 7px 2rem;
+        background-color: var(--light-bg);
+        /* background-color: rgb(195, 203, 206); */
+        width: 100%;
+    }
+
+    .mobile-menu i {
+        display: inline-block;
+        width: 12px;
+        height: 24px;
+    }
+
+    .mobile-menu-heading {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+
+    #sb-grid-content-wrapper {
+        position: absolute;
+        width: 100%;
+    }
+
+    .sb-grid-content {
+        overflow: hidden;
+        border-bottom: 1px solid lightgray;
+        background-color: var(--light-bg);
+        z-index: 1;
+    }
+
+    .sidebar-wrapper {
         position: static;
         width: auto;
         max-height: fit-content;
@@ -343,12 +396,15 @@ article h3 {
     }
 
     .sb-section-wrapper {
-        width: 50%;
-        margin: auto;
-        /* margin-top: 1rem; */
+        margin-top: 0;
+        margin-left: 3rem;
     }
 
-
+    .sb-section-wrapper:first-of-type,
+    .sb-section-wrapper:last-of-type {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
 
     .sb-heading-wrapper,
     .sb-heading-wrapper-fixed {
@@ -357,10 +413,15 @@ article h3 {
         justify-content: space-between;
         align-items: center;
         border: none;
-        border-bottom: 1px solid lightgray;
         padding: 7px;
         width: 100%;
-        font-size: 20px;
+        color: var(--text-dark);
+        /* font-size: 20px; */
+    }
+
+    .sb-section-wrapper:last-of-type {
+        /* メニューの最後の要素のためmargin-bottomを設定 */
+        margin-bottom: 10px;
     }
 
     .sb-heading-wrapper i,
@@ -368,6 +429,17 @@ article h3 {
         display: inline-block;
         width: 12px;
         height: 24px;
+    }
+
+    .sb-heading-wrapper svg,
+    .sb-heading-wrapper-fixed svg {
+        fill: var(--text-dark);
+    }
+
+    .sb-heading {
+        margin-left: 0;
+        margin-top: 0;
+        font-weight: normal;
     }
 
     .sb-caret {
@@ -423,7 +495,9 @@ article h3 {
         grid-template-rows: 0fr;
         transition: grid-template-rows 0.3s;
         width: 100%;
-        z-index: 1;
+        /* サイドバーのコンテンツもアコーディオンになるため、
+        それより上に表示させる */
+        z-index: 2;
     }
 
     .nav-wrapper ul {

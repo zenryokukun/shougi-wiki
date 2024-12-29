@@ -98,20 +98,6 @@ h2 {
     }
 }
 
-@media screen and (max-width:850px) {
-
-    /* root.cssをオーバーライド */
-    .main-wrapper {
-        order: 1;
-    }
-
-    /* root.cssをオーバーライド */
-    .sidebar-wrapper {
-        order: 2;
-    }
-}
-
-
 @media screen and (max-width:600px) {
     .works-list-wrapper {
         grid-template-columns: 1fr;
