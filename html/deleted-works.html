@@ -3,7 +3,7 @@
   <p>削除されたページを復元することができます。訳あって一度削除されているので、復元の必要性をご確認の上、実施をお願いいたします。</p>
   <div class="tips">「表示」（iアイコン）をクリックすると、削除理由等の全文が確認できます。</div>
   <div class="deleted-items-container">
-    {{range .}}
+    {{range .Data}}
     <div class="deleted-item">
       <div class="work-id">
         <span class="light-label">作品ID</span>
@@ -67,4 +67,9 @@
     </div>
     {{end}}
   </div>
+  {{- if eq .LastDateInt 0}}
+  <div class="fetch-no-more">削除データがありません</div>
+  {{- else -}}
+  <a href="/deleted-works/?last-date={{.LastDateInt}}" class="fetch-next">次の一覧</a>
+  {{- end -}}
 </div>

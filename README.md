@@ -2,7 +2,6 @@
 
 ## TODOs
 
-- deleted-worksで次の一覧を取得する処理を追加
 - indexを貼らないページのメタタグ修正。もしくはrobots.txtで対応
 - ogp対応
 - NewRootData（キャッシュ）とNewRootRecord（オンデマンドで開く）のどっち使うかはっきりさせる

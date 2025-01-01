@@ -243,13 +243,29 @@ type CommentRecord struct {
 
 // 削除されたWorkのサマリ情報
 type DeletedWork struct {
-	Id      int
-	Title   string
-	Kihu    string
-	DelDate string
-	Reason  string
+	Id         int
+	Title      string
+	Kihu       string
+	DelDateInt int
+	DelDate    string
+	Reason     string
 	// サムネのパス
 	Thumb string
+}
+
+type DeletedWorks []DeletedWork
+
+// 最小のDelDateIntを返す。長さ0の場合、0を返す。
+func (ws DeletedWorks) Min() int {
+	min := 0
+	for _, w := range ws {
+		if min == 0 {
+			min = w.DelDateInt
+		} else if w.DelDateInt < min {
+			min = w.DelDateInt
+		}
+	}
+	return min
 }
 
 type WorksMap map[int][]WorkLink
@@ -1075,18 +1091,37 @@ func getWorksList(db *sql.DB, lastId, tesu int) ([]WorkListTmpl, error) {
 }
 
 // 削除されたworksを取得
-func getDeletedWorks(db *sql.DB) ([]DeletedWork, error) {
+func getDeletedWorks(db *sql.DB, lastDate int64) (DeletedWorks, error) {
 
-	var list []DeletedWork
+	var list DeletedWorks
+	var rows *sql.Rows
+	var err error
 
-	rows, err := db.Query(`
-		SELECT 
-			ID,TITLE,KIHU,DEL_DATE,DEL_REASON 
-		FROM WORKS
-		WHERE DEL_FLG = 1
-		ORDER BY TESU
-		LIMIT 50
-	`)
+	// 実行結果は削除日の降順でソートしている
+	if lastDate == 0 {
+		// 最初の表示の場合
+		query := `
+			SELECT 
+				ID,TITLE,KIHU,DEL_DATE,DEL_REASON 
+			FROM WORKS
+			WHERE DEL_FLG = 1
+			ORDER BY DEL_DATE DESC
+			LIMIT 5
+		`
+		rows, err = db.Query(query)
+	} else {
+		// 次の一覧を取得した場合
+		query := `
+			SELECT 
+				ID,TITLE,KIHU,DEL_DATE,DEL_REASON 
+			FROM WORKS
+			WHERE DEL_FLG = 1 AND DEL_DATE < ?
+			ORDER BY DEL_DATE DESC
+			LIMIT 5
+		`
+		rows, err = db.Query(query, lastDate)
+	}
+
 	if err != nil {
 		err = stack("getDeletedWorks", err)
 		return list, err
@@ -1120,12 +1155,13 @@ func getDeletedWorks(db *sql.DB) ([]DeletedWork, error) {
 		// サムネのパス
 		thumb := "/thumb/" + fmt.Sprint(id) + ".png"
 		list = append(list, DeletedWork{
-			Id:      id,
-			Title:   title,
-			Kihu:    kihu,
-			DelDate: dateStr,
-			Reason:  reason,
-			Thumb:   thumb,
+			Id:         id,
+			Title:      title,
+			Kihu:       kihu,
+			DelDateInt: dateInt,
+			DelDate:    dateStr,
+			Reason:     reason,
+			Thumb:      thumb,
 		})
 	}
 

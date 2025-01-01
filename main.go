@@ -1081,8 +1081,28 @@ func main() {
 	})
 
 	http.HandleFunc("GET /deleted-works/", func(w http.ResponseWriter, r *http.Request) {
-		// deleteされた作品の一覧
-		wk, err := getDeletedWorks(db)
+		query := r.URL.Query()
+		// 画面表示されている削除一覧のうち、最小の削除日付がパラメタとして渡される
+		lastDateStr := query.Get("last-date")
+
+		var lastDate int64
+		var err error
+
+		if len(lastDateStr) == 0 {
+			// パラメタがない場合、最小日付は0にする。0の場合、template側で初期表示とみなす。
+			lastDate = 0
+		} else {
+			lastDate, err = strconv.ParseInt(lastDateStr, 10, 64)
+			if err != nil {
+				logErr(r, err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		}
+
+		// deleteされた作品の一覧。lastDateより前のデータが抽出される。
+		// 0の場合、関数側で初期表示とみなす。
+		wk, err := getDeletedWorks(db, lastDate)
 		if err != nil {
 			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -1090,7 +1110,16 @@ func main() {
 		}
 
 		buf := &bytes.Buffer{}
-		err = tmpl.ExecuteTemplate(buf, "deleted-works.html", wk)
+		// 取得した
+		nextLastDateInt := wk.Min()
+		delData := struct {
+			Data        DeletedWorks
+			LastDateInt int
+		}{
+			wk, nextLastDateInt,
+		}
+
+		err = tmpl.ExecuteTemplate(buf, "deleted-works.html", delData)
 		if err != nil {
 			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
