@@ -137,7 +137,7 @@
 .fetch-no-more {
     margin-top: 2rem;
     color: var(--text-medium);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Courier New', Courier, monospace;
     font-size: 1.1rem;
     font-weight: bold;
 }

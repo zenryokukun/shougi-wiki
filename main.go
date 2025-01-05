@@ -348,7 +348,6 @@ func main() {
 
 	// threadページで利用。/api/insert-commentでも使っていたが外した。。
 	loadThread := func(id int, title string, w http.ResponseWriter) error {
-		// @todo get comments data
 		comments, err := getComments(db, int(id))
 		if err != nil {
 			err = stack("loadThread", err)
@@ -644,7 +643,6 @@ func main() {
 			return
 		}
 
-		// @Todo
 		//  - backup and update work db
 		err = updateWork(db, body)
 		if err != nil {
@@ -1159,7 +1157,7 @@ func main() {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		// @Todo dbの削除処理
+
 		err = deleteWork(db, data.Id, data.Editor, data.Reason)
 		if err != nil {
 			logErr(r, err)
@@ -1215,10 +1213,7 @@ func main() {
 		}
 
 		wlist, err := getWorksList(db, int(start), int(tesu))
-		if err != nil || len(wlist) == 0 {
-			if len(wlist) == 0 {
-				err = errors.New("wlistの長さがゼロ")
-			}
+		if err != nil {
 			logErr(r, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return

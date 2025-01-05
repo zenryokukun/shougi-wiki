@@ -2,6 +2,9 @@
 <div class="works-list-page-container" data-lastid="{{.LastId}}">
   <h1>作品一覧</h1>
   <div>
+    {{if eq (len .List) 0}}
+    <div class="no-data">まだ作品がありません。<a href="/edit">作品投稿</a>から投稿して下さい。</div>
+    {{end}}
     {{range .List}}
     <section>
       <div class="section-header">
