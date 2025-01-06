@@ -1,4 +1,4 @@
-module github.com/zenryokukun/surfergopher
+module github.com/zenryokukun/shougi-wiki
 
 go 1.22.1
 
