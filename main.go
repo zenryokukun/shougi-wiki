@@ -1314,6 +1314,14 @@ func main() {
 		http.Redirect(w, r, url, http.StatusSeeOther)
 	})
 
+	http.HandleFunc("/about-me/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("準備中。数日お待ちください"))
+	})
+
+	http.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("準備中。数日お待ちください"))
+	})
+
 	// localhostをつけないと、起動時にfw許可のメッセージが出る
 	// つけると、スマホ等別デバイスからのアクセスができなくなる
 	// err = http.ListenAndServe("localhost:8000", nil)

@@ -40,10 +40,7 @@
             return null;
         }
 
-        /**
-         * @todo ドメイン取得後に変更
-         */
-        const origin = "https://tsume-shogi-wiki.com/";
+        const origin = "https://tsume-shougi-wiki.com/";
 
         const genItem = (i, name, url) => {
             const ret = {
