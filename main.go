@@ -1314,12 +1314,15 @@ func main() {
 		http.Redirect(w, r, url, http.StatusSeeOther)
 	})
 
+	// 準備中の時に表示するページ
+	http.Handle("GET /not-ready/", staticPageHandler)
+
 	http.HandleFunc("/about-me/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("準備中。数日お待ちください"))
+		http.Redirect(w, r, "/not-ready/", http.StatusSeeOther)
 	})
 
 	http.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("準備中。数日お待ちください"))
+		http.Redirect(w, r, "/not-ready/", http.StatusSeeOther)
 	})
 
 	// localhostをつけないと、起動時にfw許可のメッセージが出る

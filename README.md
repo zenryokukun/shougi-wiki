@@ -3,6 +3,7 @@
 ## TODOs
 
 - デプロイ後に対応：　ogp対応（ルートページしか対応していない）。
+- certbotのrenew対応。3か月で失効するため。cron使うみたい。certbotのHP参考に。
 - 追加予定ページ（優先順位）：管理人について、ブログ
 - NewRootData（キャッシュ）とNewRootRecord（オンデマンドで開く）のどっち使うかはっきりさせる
 - defaultLayoutHandler関数の用途がよく分からないので精査
@@ -50,3 +51,25 @@ templateエンジンで使うhtmlテンプレート
 
 - layout.htmlの右サイドバーを追加しても良いかもしれない。更新情報、作者情報など。asideタグとかで。コンテンツがある程度増えてからでも良いかもだけど。
 - AWSでデプロイ
+
+## deploy
+
+サーバ側での実行
+
+### アプリ起動
+
+```bash
+# 適宜git pullしておく
+# 最後の&はバックグラウンドで実行するために必要。SSHが切れても動かせ続けるために、nohupコマンドを使う
+nohup ./executable &
+```
+
+### アプリ停止
+
+```bash
+# process idを確認
+sudo ps aux | grep "executable"
+
+# そのidをタスクキル
+kill id-number
+```
