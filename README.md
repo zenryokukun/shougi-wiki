@@ -3,7 +3,7 @@
 ## TODOs
 
 - デプロイ後に対応：　ogp対応（ルートページしか対応していない）。
-- certbotのrenew対応。3か月で失効するため。cron使うみたい。certbotのHP参考に。
+- certbotのrenew対応。3か月で失効するため。cron使うみたい。certbotのHP参考に。自動で更新かかる説もあるので、様子見か。。
 - 追加予定ページ（優先順位）：管理人について、ブログ
 - NewRootData（キャッシュ）とNewRootRecord（オンデマンドで開く）のどっち使うかはっきりさせる
 - defaultLayoutHandler関数の用途がよく分からないので精査
