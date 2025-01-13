@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -172,9 +173,15 @@ func main() {
 		"add": func(v, inc int) int {
 			return v + inc
 		},
+		"isProduction": func() bool {
+			// 本番かどうかチェックする。GA4のスクリプト制御用（本番時のみ入れたい）
+			// OSがWindowsなら開発環境、以外なら本番とみなす。
+			return runtime.GOOS != "windows"
+		},
 	}
 
 	// html template
+	// 共通レイアウト部分（"layout"）、works部分（"works"）,それ以外（"edit-description"）で分かれている。名前に特に意味はない
 	// tmpl, err := template.ParseFiles("./html/edit-description.html", "./html/preview.html")
 	tmpl, err := template.New("edit-description").Funcs(customFunc).ParseFiles("./html/edit-description.html", "./html/preview.html", "./html/deleted-works.html", "./html/works-list.html", "./html/board.html", "./html/thread.html")
 	if err != nil {
@@ -182,7 +189,7 @@ func main() {
 	}
 
 	// html template for root page
-	rootTmpl, err := template.ParseFiles("./html/layout.html", "./html/nav.html", "./html/sidebar.html")
+	rootTmpl, err := template.New("layout").Funcs(customFunc).ParseFiles("./html/layout.html", "./html/nav.html", "./html/sidebar.html")
 	if err != nil {
 		log.Fatal(err)
 	}
