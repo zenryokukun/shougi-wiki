@@ -151,7 +151,9 @@ fieldset {
   display: inline-block;
   width: 70px;
   margin-right: 0.8rem;
+  /* font-family: sans-serif, monospace; */
   font-family: sans-serif, monospace;
+
 }
 
 #kihu>div {

@@ -3,3 +3,4 @@
 /public/thumb
 /sql/alter_*.sql
 /sql/test*.sql
+*cred.json

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/zenryokukun/gotweet"
 )
 
 const PORT = 8000
@@ -210,6 +211,9 @@ func main() {
 
 	// site-policyページ等、一部の静的ページで使うハンドラ。
 	staticPageHandler := defalutLayoutHandler(rootTmpl, cache)
+
+	// Tweet用
+	twitter := gotweet.NewTwitter("./twitter-cred.json")
 
 	// routes
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -638,6 +642,9 @@ func main() {
 		if err != nil {
 			logErr(r, err)
 		}
+
+		// tweet
+		TweetInsertWork(twitter, body, fpath)
 	})
 
 	http.HandleFunc("/api/update-work", func(w http.ResponseWriter, r *http.Request) {
@@ -1328,8 +1335,39 @@ func main() {
 		http.Redirect(w, r, "/not-ready/", http.StatusSeeOther)
 	})
 
-	http.HandleFunc("/blog/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/not-ready/", http.StatusSeeOther)
+	// ニュースの一覧ページ
+	// 一覧の値はベタ打ちのため、newsを新たに作成した場合、一覧も手動で追加すること -> ./html/news-list/content.html
+	http.Handle("GET /news-list/", staticPageHandler)
+
+	// ニュースのページ。一覧から飛ぶ
+	http.HandleFunc("/news/{slug}/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.PathValue("slug")
+		// slugが未設定の場合はNot Foundを返す
+		if len(path) == 0 {
+			err := errors.New("{slug} length of zero")
+			logErr(r, err)
+			http.NotFound(w, r)
+			return
+		}
+
+		// /html/news/{slug}のデータを取得
+		// html部分はNewRootRecordで補完されるので指定不要
+		route := "news/" + path
+		rec := NewRootRecord(route)
+		if rec.Err != nil {
+			logErr(r, rec.Err)
+			http.NotFound(w, r)
+			return
+		}
+
+		rec.Sections = cache.SectionCache
+		err := rootTmpl.ExecuteTemplate(w, "layout.html", rec)
+
+		if err != nil {
+			logErr(r, err)
+			http.NotFound(w, r)
+			return
+		}
 	})
 
 	// localhostをつけないと、起動時にfw許可のメッセージが出る

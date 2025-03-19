@@ -1,0 +1,21 @@
+.news-list-container {
+    padding: 2rem;
+}
+
+.news-list-container h1 {
+    font-size: 32px;
+    font-weight: 600;
+    font-family: Arial, Helvetica, sans-serif;
+    border-left: 5px solid var(--primary);
+    padding-left: 1rem;
+}
+
+.small {
+    display: inline-block;
+    margin-left: 1rem;
+    font-size: 0.9rem;
+}
+
+.light {
+    color: var(--text-medium);
+}
