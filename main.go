@@ -644,7 +644,7 @@ func main() {
 		}
 
 		// tweet
-		TweetInsertWork(twitter, body, fpath)
+		TweetInsertWork(twitter, body, fpath, maxId)
 	})
 
 	http.HandleFunc("/api/update-work", func(w http.ResponseWriter, r *http.Request) {

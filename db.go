@@ -335,7 +335,7 @@ func (c WorksMap) section() []Section {
 
 		wk := c[key]
 		for _, v := range wk {
-			link := fmt.Sprintf(`<a href="/works?id=%v">%v</a>`, v.Id, v.Title)
+			link := fmt.Sprintf(`<a href="/works/?id=%v">%v</a>`, v.Id, v.Title)
 			sec.List = append(sec.List, template.HTML(link))
 		}
 		ret = append(ret, sec)
