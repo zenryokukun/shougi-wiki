@@ -10,6 +10,14 @@
     padding-left: 1rem;
 }
 
+.link-wrapper {
+    margin-top: 2rem;
+}
+
+.link-wrapper li {
+    margin-bottom: 1rem;
+}
+
 .small {
     display: inline-block;
     margin-left: 1rem;
@@ -18,4 +26,10 @@
 
 .light {
     color: var(--text-medium);
+}
+
+@media screen and (max-width:600px) {
+    .link-wrapper li {
+        margin-bottom: 1.5rem;
+    }
 }
